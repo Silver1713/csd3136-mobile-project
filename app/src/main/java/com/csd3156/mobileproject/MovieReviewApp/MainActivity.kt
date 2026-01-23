@@ -9,8 +9,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.csd3156.mobileproject.MovieReviewApp.data.Account
+//import com.csd3156.mobileproject.MovieReviewApp.data.Account
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
 import com.csd3156.mobileproject.MovieReviewApp.ui.theme.MovieReviewAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,23 +24,30 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MovieReviewAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                MovieReviewNavHost()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun MovieReviewNavHost(startDestination: String = "movieList") {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable("movieList") {
+            MovieListRoute(
+                onMovieClick = { id -> navController.navigate("movieDetail/$id") }
+            )
+        }
+        composable("movieDetail/{movieId}") { backStackEntry ->
+            val movieId = backStackEntry.arguments?.getString("movieId")?.toLongOrNull()
+                ?: return@composable
+            MovieDetailRoute(
+                movieId = movieId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
 }
 
 

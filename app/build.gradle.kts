@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.glance.preview)
     implementation(libs.androidx.room.compiler)
     implementation(libs.androidx.androidx.room.gradle.plugin)
+    implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
