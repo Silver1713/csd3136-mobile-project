@@ -20,18 +20,27 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 
 @Composable
-fun MovieListRoute(onMovieClick: (Long) -> Unit, viewModel: MovieListViewModel = viewModel()){
+fun MovieListRoute(
+    onMovieClick: (Long) -> Unit,
+    viewModel: MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory())
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Box(modifier = Modifier.fillMaxSize()){
-        LazyColumn(modifier = Modifier.fillMaxSize()){
-            items(uiState.movies){
-                movie -> Text(text = movie.title, style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxSize().clickable{onMovieClick(movie.id)}.padding(horizontal = 16.dp, vertical = 12.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(uiState.movies) { movie ->
+                Text(
+                    text = movie.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { onMovieClick(movie.id) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                )
             }
         }
 
-        if (uiState.isLoading){
+        if (uiState.isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         }
         uiState.errorMessage?.let { message ->
