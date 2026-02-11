@@ -2,7 +2,10 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.jetbrains.kotlin.serialization)
+    alias(libs.plugins.ksp)
+
+
 }
 
 android {
@@ -19,6 +22,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Added this filed to expose TMDB bearer token via BuildConfig.TMDB_API_TOKEN
+        buildConfigField(
+            "String",
+            "TMDB_API_TOKEN",
+            "\"eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwOWM3ZjJiZGFiNzA1NjhhMzc1NDY4YTYxOTQ3NDRiOSIsIm5iZiI6MTUzMTE5MTQzOC4wODYwMDAyLCJzdWIiOiI1YjQ0MjA4ZTBlMGEyNjcwZmMwMjRiZjUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.p0gtbhEKJ5UFUUwOCDwxi98dzSCwPdLJJa6LyS1CWiM\""
+        )
     }
 
     buildTypes {
@@ -31,15 +41,25 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "11"
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
+
+    // Set buildConfig to true so gradle generates BuildConfig
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+}
+
+configurations.all {
+    exclude(group = "com.intellij", module = "annotations")
 }
 
 dependencies {
@@ -52,8 +72,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.glance.preview)
-//    implementation(libs.androidx.room.compiler)
-//    implementation(libs.androidx.androidx.room.gradle.plugin)
+   // implementation(libs.androidx.room.compiler)
+   // implementation(libs.androidx.androidx.room.gradle.plugin)
+    implementation(libs.androidx.navigation.compose)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -68,6 +94,7 @@ dependencies {
 }
 
 dependencies {
+    implementation(libs.androidx.material3)
     val room_version = "2.8.4"
 
     implementation("androidx.room:room-runtime:$room_version")
