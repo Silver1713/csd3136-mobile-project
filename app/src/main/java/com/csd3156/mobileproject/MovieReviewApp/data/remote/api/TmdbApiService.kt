@@ -8,6 +8,8 @@ import retrofit2.http.Query
 interface TmdbApiService {
     @GET("movie/popular")
     suspend fun getPopularMovies(@Query("page") page: Int = 1): MovieListDto
+    @GET("trending/movie/{time_window}")
+    suspend fun GetTrendingMovies(@retrofit2.http.Path("time_window") timeWindow: String = "day") : MovieListDto
 
     companion object {
         const val BASE_URL = "https://api.themoviedb.org/3/"

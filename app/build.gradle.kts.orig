@@ -2,10 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.jetbrains.kotlin.serialization)
-    alias(libs.plugins.ksp)
-
-
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -41,14 +38,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
+    kotlinOptions {
+        jvmTarget = "11"
     }
 
     // Set buildConfig to true so gradle generates BuildConfig
@@ -72,16 +66,19 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.glance.preview)
-   // implementation(libs.androidx.room.compiler)
-   // implementation(libs.androidx.androidx.room.gradle.plugin)
-    implementation ("androidx.compose.material:material-icons-extended")
-
+<<<<<<< HEAD
+//    implementation(libs.androidx.room.compiler)
+//    implementation(libs.androidx.androidx.room.gradle.plugin)
+=======
+    implementation(libs.androidx.room.compiler)
+    implementation(libs.androidx.androidx.room.gradle.plugin)
     implementation(libs.androidx.navigation.compose)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+>>>>>>> hz
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -93,15 +90,9 @@ dependencies {
 
 
 
-
 }
 
 dependencies {
-    implementation(libs.androidx.material3)
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
-
-
     val room_version = "2.8.4"
 
     implementation("androidx.room:room-runtime:$room_version")

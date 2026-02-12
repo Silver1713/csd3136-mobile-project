@@ -39,6 +39,21 @@ class MovieRepositoryImpl(
         )
     }.flowOn(ioDispatcher)
 
+    override fun getTrendingMovies(): Flow<Resource<List<Movie>>> = flow {
+        emit(Resource.Loading)
+        val response = apiService.GetTrendingMovies()
+        val movies = response.results.map { it.toDomain() }
+        emit(Resource.Success(movies))
+    }.catch { throwable ->
+        emit(
+            Resource.Error(
+                message = throwable.message ?: "Unable to load movies",
+                throwable = throwable
+            )
+        )
+    }.flowOn(ioDispatcher)
+
+
     companion object {
         fun create(apiKey: String = BuildConfig.TMDB_API_TOKEN): MovieRepositoryImpl {
             require(apiKey.isNotBlank()) { "TMDB API key is missing" }

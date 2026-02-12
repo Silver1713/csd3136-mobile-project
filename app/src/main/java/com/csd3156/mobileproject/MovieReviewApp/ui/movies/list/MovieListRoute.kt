@@ -28,15 +28,17 @@ fun MovieListRoute(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(uiState.movies) { movie ->
-                Text(
-                    text = movie.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { onMovieClick(movie.id) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+            items(uiState.moviesPopular) { movie ->
+                movie.title?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { onMovieClick(movie.id) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
             }
         }
 

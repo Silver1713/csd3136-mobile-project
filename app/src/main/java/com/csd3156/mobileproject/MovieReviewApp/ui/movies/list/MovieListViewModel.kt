@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class MovieListUiState(
-    val movies: List<Movie> = emptyList(),
+    val moviesPopular: List<Movie> = emptyList(),
+    val moviesTrending: List<Movie> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -30,26 +31,54 @@ class MovieListViewModel(
     }
 
     fun refresh() {
+
+        // Popular
         viewModelScope.launch {
             repository.getPopularMovies().collect { resource ->
                 when (resource) {
                     is Resource.Loading -> _uiState.value =
                         _uiState.value.copy(isLoading = true, errorMessage = null)
 
-                    is Resource.Success -> _uiState.value = MovieListUiState(
-                        movies = resource.data,
-                        isLoading = false,
-                        errorMessage = null
-                    )
+                    is Resource.Success -> _uiState.value =
+                        _uiState.value.copy(
+                            moviesPopular = resource.data,
+                            isLoading = false,
+                            errorMessage = null
+                        )
 
-                    is Resource.Error -> _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = resource.message
-                    )
+                    is Resource.Error -> _uiState.value =
+                        _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                        )
+                }
+            }
+        }
+
+        // Trending
+        viewModelScope.launch {
+            repository.getTrendingMovies().collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.value =
+                        _uiState.value.copy(isLoading = true, errorMessage = null)
+
+                    is Resource.Success -> _uiState.value =
+                        _uiState.value.copy(
+                            moviesTrending = resource.data,
+                            isLoading = false,
+                            errorMessage = null
+                        )
+
+                    is Resource.Error -> _uiState.value =
+                        _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                        )
                 }
             }
         }
     }
+
 
     companion object {
         fun provideFactory(): ViewModelProvider.Factory {

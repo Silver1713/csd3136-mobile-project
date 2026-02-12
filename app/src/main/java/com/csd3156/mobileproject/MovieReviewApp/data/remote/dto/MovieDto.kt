@@ -21,5 +21,7 @@ fun MovieDto.toDomain(): Movie = Movie(
     posterUrl = posterPath?.let { TmdbApiService.IMAGE_BASE_URL + it }.orEmpty(),
     rating = voteAverage ?: 0.0,
     releaseDate = releaseDate.orEmpty(),
-    review = ""
+    review = "",
+    genres = emptyList(),
+    watchTimeInSeconds = 0
 )
