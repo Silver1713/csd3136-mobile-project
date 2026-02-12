@@ -1,6 +1,8 @@
 package com.csd3156.mobileproject.MovieReviewApp.ui.main
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -31,6 +34,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,10 +46,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,59 +75,106 @@ enum class MovieContentSection {
 
 
 @Composable
-fun HomeScreen(viewmodel: MovieListViewModel = viewModel(), modifier: Modifier = Modifier) {
+fun HomeScreen(
+    viewmodel: MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory()),
+    modifier: Modifier = Modifier
+) {
+    // Create HomeScreen ViewModel
+    val homeVM: HomeScreenViewModel = viewModel(factory = HomeViewModelFactory())
+    val isSearch by homeVM.isSearching.collectAsStateWithLifecycle()
+    val uiState by viewmodel.uiState.collectAsStateWithLifecycle()
     // Main Screen UI Here
     // Div Start
 
     Column(
         modifier = modifier
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+            )
     ) {
         TitleSection(viewmodel)
-        Column(
-            modifier = Modifier.verticalScroll(
-                rememberScrollState()
-            )
-        ) {
-            Sections(
-                "Recommended for You",
-                null,
-                modifier = Modifier.padding(
-                    top = 16.dp, bottom = 16.dp,
-                    start = 16.dp, end = 16.dp
-                )
-            )
-            RowingMoviesContent(
-                viewmodel,
-                movieType = MovieContentSection.MOVIE_REC,
-                mod = Modifier.padding(0.dp)
-            )
-            Sections(
-                "Trending Now",
-                null,
-                modifier = Modifier.padding(
-                    top = 16.dp, bottom = 16.dp,
-                    start = 16.dp, end = 16.dp
-                )
-            )
-            RowingMoviesContent(
-                viewmodel,
-                movieType = MovieContentSection.MOVIE_TRENDING,
-                mod = Modifier
-            )
-            Sections(
-                "Explore Genre",
-                null,
-                modifier = Modifier.padding(
-                    top = 16.dp, bottom = 16.dp,
-                    start = 16.dp, end = 16.dp
-                )
-            )
-            GridMovieContent(
-                movieListViewModel = viewmodel,
-                movieType = MovieContentSection.MOVIE_EXPLORE,
-                mod = Modifier
+        if (uiState.moviesSearchResults.isNotEmpty()) {
+            homeVM.setIsSearching(true)
+            LazyVerticalGrid(
 
-            )
+                contentPadding = PaddingValues(16.dp),
+                columns = GridCells.Adaptive(120.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+
+
+            ) {
+                items(uiState.moviesSearchResults
+                    .sortedByDescending { it.releaseDate }){
+                        movie -> MovieCard(
+                    0,
+                    movie,
+                    false,
+                    true,
+                    false,
+                    false
+
+                ) { }
+
+                }
+            }
+
+        } else {
+            homeVM.setIsSearching(false)
+        }
+        if (!isSearch) {
+            Column(
+                modifier = Modifier.verticalScroll(
+                    rememberScrollState()
+                )
+            ) {
+                Sections(
+                    "Recommended for You",
+                    null,
+                    modifier = Modifier.padding(
+                        top = 16.dp, bottom = 16.dp,
+                        start = 16.dp, end = 16.dp
+                    )
+                )
+                RowingMoviesContent(
+                    viewmodel,
+                    movieType = MovieContentSection.MOVIE_REC,
+                    mod = Modifier.padding(0.dp)
+                )
+                Sections(
+                    "Trending Now",
+                    null,
+                    modifier = Modifier.padding(
+                        top = 16.dp, bottom = 16.dp,
+                        start = 16.dp, end = 16.dp
+                    )
+                )
+                RowingMoviesContent(
+                    viewmodel,
+                    movieType = MovieContentSection.MOVIE_TRENDING,
+                    mod = Modifier
+                )
+                Sections(
+                    "Explore Genre",
+                    null,
+                    modifier = Modifier.padding(
+                        top = 16.dp, bottom = 16.dp,
+                        start = 16.dp, end = 16.dp
+                    )
+                )
+                GridMovieContent(
+                    movieListViewModel = viewmodel,
+                    movieType = MovieContentSection.MOVIE_EXPLORE,
+                    mod = Modifier
+
+                )
+            }
         }
 
 
@@ -142,6 +194,9 @@ fun movieSearchBar(
     var active by rememberSaveable { mutableStateOf(false) }
 
     DockedSearchBar(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(6.dp, RoundedCornerShape(18.dp)),
         inputField = {
             SearchBarDefaults.InputField(
                 modifier = modifier,
@@ -153,11 +208,22 @@ fun movieSearchBar(
                 onSearch = { onSearch(query) },
                 expanded = false,
                 onExpandedChange = { active = it },
-                placeholder = { Text("Search") }
+                placeholder = {
+                    Text(
+                        "Search movies",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             )
         },
         expanded = false,
-        onExpandedChange = { active = it }
+        onExpandedChange = { active = it },
+        shape = RoundedCornerShape(18.dp),
+        colors = SearchBarDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            dividerColor = MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         // Expanded content — intentionally empty
     }
@@ -183,22 +249,29 @@ fun TitleSection(movieListViewModel: MovieListViewModel) {
             .fillMaxWidth()
     ) {
         movieSearchBar(movieListViewModel, { query ->
-
+            movieListViewModel.searchMovies(query)
         }) { value ->
-            print(value)
+            movieListViewModel.searchMovies(value)
         }
     }
 }
 
 @Composable
 fun makeProfileIcon(drawableId: Int, modifier: Modifier) {
-    Icon(
-        imageVector = Icons.Filled.AccountCircle,
-        tint = Color.Gray,
-        contentDescription = null,
+    Box(
         modifier = modifier
             .clip(CircleShape)
-    )
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AccountCircle,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            contentDescription = null,
+            modifier = Modifier.size(42.dp)
+        )
+    }
 }
 
 
@@ -299,30 +372,34 @@ fun MovieCard(
     movie: Movie,
     isHorizontal: Boolean = false, withAdditionalLabel: Boolean = true,
     withReviewLabel: Boolean = true,
-    withTrendingLabel: Boolean = false, onclick: () -> Unit
+    withTrendingLabel: Boolean = false,
+    posterSize: IntArray = intArrayOf(140, 240),
+    onclick: () -> Unit
 ) {
     Card(
         modifier = if (isHorizontal) {
             Modifier
 
-                .width(240.dp)
+                .width(posterSize[1].dp)
         } else {
             Modifier
 
-                .width(140.dp)
+                .width(posterSize[0].dp)
         },
         onClick = onclick,
         colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        )
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Column {
+        Column(modifier = Modifier.padding(8.dp)) {
             Box(
                 modifier =
                     Modifier.shadow(
                         elevation = 2.dp,
-                        spotColor = Color.Black,
-                        ambientColor = Color.Black,
+                        spotColor = MaterialTheme.colorScheme.scrim,
+                        ambientColor = MaterialTheme.colorScheme.scrim,
                         shape = RoundedCornerShape(16.dp)
                     )
             ) {
@@ -338,8 +415,8 @@ fun MovieCard(
                         .clip(RoundedCornerShape(16.dp))
                         .shadow(
                             elevation = 10.dp,
-                            spotColor = Color.Black,
-                            ambientColor = Color.Black,
+                            spotColor = MaterialTheme.colorScheme.scrim,
+                            ambientColor = MaterialTheme.colorScheme.scrim,
                             clip = true
 
                         ),
@@ -349,9 +426,9 @@ fun MovieCard(
                     Card(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(16.dp),
+                            .padding(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                         )
 
                     ) {
@@ -361,13 +438,15 @@ fun MovieCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Star,
-                                tint = Color.Yellow,
+                                tint = MaterialTheme.colorScheme.tertiary,
 
                                 contentDescription = null,
                             )
                             Text(
-                                5.0.toString(), textAlign = TextAlign.Center,
-                                color = Color.White
+                                String.format("%.1f", movie.rating),
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
@@ -376,9 +455,9 @@ fun MovieCard(
                     Card(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
-                            .padding(16.dp),
+                            .padding(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f),
                         )
 
                     ) {
@@ -389,8 +468,9 @@ fun MovieCard(
 
                             Text(
                                 "#${id+1} Trending", textAlign = TextAlign.Center,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
@@ -398,20 +478,30 @@ fun MovieCard(
             }
             movie.title?.let {
                 Text(
-                    it, modifier = Modifier.padding(top = 8.dp),
-                    fontWeight = FontWeight.Bold, fontSize = 16.sp
+                    it, modifier = Modifier.padding(top = 10.dp),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             if (withAdditionalLabel) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                 ) {
-                    Text(
-                        "Sci-Fi",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
+                    if (movie.genres?.isEmpty() == true){
+                        "Unspecified"
+                    } else {
+                        movie.genres?.get(0)
+                    }?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
 
                     Spacer(Modifier.size(6.dp))
 
@@ -419,7 +509,7 @@ fun MovieCard(
                         modifier = Modifier
                             .size(4.dp)              // dot size
                             .background(
-                                Color.Gray,
+                                MaterialTheme.colorScheme.onSurfaceVariant,
                                 shape = CircleShape
                             )
                     )
@@ -427,9 +517,10 @@ fun MovieCard(
                     Spacer(Modifier.size(6.dp))
 
                     Text(
-                        movie.getFormattedTime(),
-                        color = Color.Gray,
-                        fontSize = 12.sp
+                        movie.releaseDate?.take(4) ?: "0000",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelSmall
                     )
 
                 }

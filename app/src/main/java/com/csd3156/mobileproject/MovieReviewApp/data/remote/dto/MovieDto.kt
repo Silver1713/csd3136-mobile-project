@@ -11,17 +11,22 @@ data class MovieDto(
     val overview: String?,
     @Json(name = "poster_path") val posterPath: String?,
     @Json(name = "vote_average") val voteAverage: Double?,
-    @Json(name = "release_date") val releaseDate: String?
+    @Json(name = "release_date") val releaseDate: String?,
+    @Json(name = "genre_ids") val genreIds: List<Long> = emptyList()
 )
 
-fun MovieDto.toDomain(): Movie = Movie(
+fun MovieDto.toDomain(
+    genres: List<String> = emptyList(),
+    review: String = "",
+    watchTimeInSeconds: Long = 0
+): Movie = Movie(
     id = id,
     title = title.orEmpty(),
     overview = overview.orEmpty(),
     posterUrl = posterPath?.let { TmdbApiService.IMAGE_BASE_URL + it }.orEmpty(),
     rating = voteAverage ?: 0.0,
     releaseDate = releaseDate.orEmpty(),
-    review = "",
-    genres = emptyList(),
-    watchTimeInSeconds = 0
+    review = review,
+    genres = genres,
+    watchTimeInSeconds = watchTimeInSeconds
 )

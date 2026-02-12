@@ -9,7 +9,7 @@ data class Movie(
 
     val posterUrl: String?,
     val rating: Double,
-    val releaseDate: String,
+    val releaseDate: String?,
     val review: String?,
     val watchTimeInSeconds : Long,
 

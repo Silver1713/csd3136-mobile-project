@@ -11,19 +11,21 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -43,10 +45,11 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            MovieReviewAppTheme {
+            MovieReviewAppTheme(darkTheme = true) {
                 val navController = rememberNavController()
 
                 Scaffold(
+                    containerColor = MaterialTheme.colorScheme.background,
                     topBar = {
                     },
                     bottomBar = {
@@ -76,8 +79,14 @@ fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modif
 @Composable
 fun MovieDetailRoute(movieId: Long, onBack: () -> Unit) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
                 title = { Text(text = "Movie #$movieId") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -92,6 +101,7 @@ fun MovieDetailRoute(movieId: Long, onBack: () -> Unit) {
     ) { padding ->
         Text(
             text = "Detail screen placeholder for movie id=$movieId.",
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(padding).fillMaxSize()
         )
     }
@@ -125,7 +135,8 @@ fun BottomBar(navController: NavHostController) {
     val currentRoute = backStackEntry?.destination?.route
 
     NavigationBar(
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+        tonalElevation = 10.dp
     ) {
         items.forEach { item ->
 
@@ -152,11 +163,11 @@ fun BottomBar(navController: NavHostController) {
                 alwaysShowLabel = true,
 
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.Black,
-                    selectedTextColor = Color.Black,
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray,
-                    indicatorColor = Color.Transparent
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
                 )
             )
         }
