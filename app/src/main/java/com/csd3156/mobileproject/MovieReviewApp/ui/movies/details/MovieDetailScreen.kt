@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -303,15 +304,24 @@ private fun MovieHeroSection(movie: MovieDetails, onBack: () -> Unit) {
                 .align(Alignment.BottomStart)
                 .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
-            Text(
-                text = movie.genres.firstOrNull()?.name ?: "FEATURED",
-                color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelLarge
-            )
+            Row (
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+
+            ){
+
+                movie.genres.forEach {
+                    Text(
+                        text = it.name ?: "FEATURED",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+
             Spacer(Modifier.height(12.dp))
             Text(
                 text = movie.title,
