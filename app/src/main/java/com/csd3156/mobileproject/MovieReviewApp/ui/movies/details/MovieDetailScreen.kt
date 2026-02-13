@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
@@ -57,7 +56,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -279,7 +277,7 @@ private fun MovieHeroSection(movie: MovieDetails, onBack: () -> Unit) {
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = Icons.Rounded.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "Go back",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -311,7 +309,7 @@ private fun MovieHeroSection(movie: MovieDetails, onBack: () -> Unit) {
 
                 movie.genres.forEach {
                     Text(
-                        text = it.name ?: "FEATURED",
+                        text = it.name,
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
@@ -601,7 +599,7 @@ private fun RatingBreakdownRow(stars: Int, progress: Float) {
         )
         Spacer(Modifier.width(6.dp))
         LinearProgressIndicator(
-            progress = progress,
+            progress = { progress },
             modifier = Modifier
                 .weight(1f)
                 .height(6.dp)
@@ -825,14 +823,14 @@ private fun TrailerYoutubePlayer(
     onPlaybackError: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val youTubePlayerView = remember(videoKey) {
         YouTubePlayerView(context).apply {
             lifecycleOwner.lifecycle.addObserver(this)
             enableAutomaticInitialization = false
             val listener = object : AbstractYouTubePlayerListener() {
-                override fun onReady(player: YouTubePlayer) {
-                    player.loadVideo(videoKey, 0f)
+                override fun onReady(youTubePlayer: YouTubePlayer) {
+                    youTubePlayer.loadVideo(videoKey, 0f)
                 }
 
                 override fun onError(
