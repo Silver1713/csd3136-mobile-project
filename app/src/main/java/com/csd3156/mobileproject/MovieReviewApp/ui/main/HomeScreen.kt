@@ -135,7 +135,7 @@ fun HomeScreen(
                 )
             ) {
                 Sections(
-                    "Recommended for You",
+                    "Popular",
                     null,
                     modifier = Modifier.padding(
                         top = 16.dp, bottom = 16.dp,
@@ -161,7 +161,7 @@ fun HomeScreen(
                     mod = Modifier
                 )
                 Sections(
-                    "Explore Genre",
+                    "Explore",
                     null,
                     modifier = Modifier.padding(
                         top = 16.dp, bottom = 16.dp,
@@ -202,6 +202,7 @@ fun movieSearchBar(
                 modifier = modifier,
                 query = query,
                 onQueryChange = {
+
                     query = it
                     onQueryChange(query)
                 },
@@ -249,7 +250,12 @@ fun TitleSection(movieListViewModel: MovieListViewModel) {
             .fillMaxWidth()
     ) {
         movieSearchBar(movieListViewModel, { query ->
-            movieListViewModel.searchMovies(query)
+            if (query.isEmpty()){
+                movieListViewModel.clearSearchMovie()
+
+            } else {
+                movieListViewModel.searchMovies(query)
+            }
         }) { value ->
             movieListViewModel.searchMovies(value)
         }
@@ -292,7 +298,13 @@ fun GridMovieContent(
 
 
         ) {
-            items(uiState.moviesPopular) { movie ->
+            items(
+                if (movieType == MovieContentSection.MOVIE_EXPLORE) {
+                    uiState.moviesDiscovered
+                } else {
+                    uiState.moviesPopular
+                }
+            ) { movie ->
                 MovieCard(
                     0,
                     movie,
@@ -349,7 +361,7 @@ fun RowingMoviesContent(
                     MovieContentSection.MOVIE_TRENDING -> MovieCard(
                         index,
                         movie,
-                        true,
+                        false,
                         true,
                         false,
                         true

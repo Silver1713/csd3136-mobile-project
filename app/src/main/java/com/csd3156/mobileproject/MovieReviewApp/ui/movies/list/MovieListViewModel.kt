@@ -41,6 +41,12 @@ class MovieListViewModel(
     init {
         refresh()
         loadGenres()
+        // Explore lane uses a high-confidence top-rated discover query.
+        discoverMovies(
+            sortBy = "vote_average.desc",
+            voteCountGte = 500,
+            includeAdult = false
+        )
     }
 
     fun refresh() {
@@ -89,6 +95,9 @@ class MovieListViewModel(
         }
     }
 
+    fun clearSearchMovie(){
+        _uiState.value = _uiState.value.copy(moviesSearchResults = emptyList(), errorMessage = null)
+    }
     fun searchMovies(query: String, page: Int = 1, includeAdult: Boolean = false) {
         if (query.isBlank()) {
             _uiState.value = _uiState.value.copy(moviesSearchResults = emptyList(), errorMessage = null)
