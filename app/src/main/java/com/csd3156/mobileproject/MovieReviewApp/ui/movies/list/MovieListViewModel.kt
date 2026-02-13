@@ -9,6 +9,7 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ data class MovieListUiState(
     val genres: List<Genre> = emptyList(),
     val selectedMovieDetails: MovieDetails? = null,
     val selectedMovieReviews: List<MovieReview> = emptyList(),
+    val selectedMovieVideos: List<MovieVideo> = emptyList(),
     val selectedMovieWatchProviders: List<WatchProvider> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null
@@ -247,6 +249,30 @@ class MovieListViewModel(
                     is Resource.Success -> _uiState.value =
                         _uiState.value.copy(
                             selectedMovieReviews = resource.data,
+                            isLoading = false,
+                            errorMessage = null
+                        )
+
+                    is Resource.Error -> _uiState.value =
+                        _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                        )
+                }
+            }
+        }
+    }
+
+    fun loadMovieVideos(movieId: Long) {
+        viewModelScope.launch {
+            repository.getMovieVideos(movieId = movieId).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.value =
+                        _uiState.value.copy(isLoading = true, errorMessage = null)
+
+                    is Resource.Success -> _uiState.value =
+                        _uiState.value.copy(
+                            selectedMovieVideos = resource.data,
                             isLoading = false,
                             errorMessage = null
                         )

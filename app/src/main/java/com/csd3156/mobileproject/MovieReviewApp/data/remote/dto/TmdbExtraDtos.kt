@@ -4,6 +4,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.TmdbApiService
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.squareup.moshi.Json
 
@@ -87,6 +88,16 @@ data class VideoItemDto(
     val official: Boolean?,
     @Json(name = "published_at") val publishedAt: String?,
     val id: String?
+)
+
+fun VideoItemDto.toDomain(): MovieVideo = MovieVideo(
+    id = id.orEmpty(),
+    name = name.orEmpty(),
+    key = key.orEmpty(),
+    site = site.orEmpty(),
+    type = type.orEmpty(),
+    official = official ?: false,
+    publishedAt = publishedAt.orEmpty()
 )
 
 data class ReviewListDto(

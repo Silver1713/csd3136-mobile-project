@@ -100,6 +100,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.0")
 
 
     val room_version = "2.8.4"
