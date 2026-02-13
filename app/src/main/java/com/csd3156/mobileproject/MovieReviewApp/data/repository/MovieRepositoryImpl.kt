@@ -9,6 +9,7 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
 import com.squareup.moshi.Moshi
@@ -168,6 +169,20 @@ class MovieRepositoryImpl(
         emit(
             Resource.Error(
                 message = throwable.message ?: "Unable to load movie reviews",
+                throwable = throwable
+            )
+        )
+    }.flowOn(ioDispatcher)
+
+    override fun getMovieVideos(movieId: Long): Flow<Resource<List<MovieVideo>>> = flow {
+        emit(Resource.Loading)
+        val response = apiService.getMovieVideos(movieId = movieId)
+        val videos = response.results.map { it.toDomain() }
+        emit(Resource.Success(videos))
+    }.catch { throwable ->
+        emit(
+            Resource.Error(
+                message = throwable.message ?: "Unable to load movie videos",
                 throwable = throwable
             )
         )

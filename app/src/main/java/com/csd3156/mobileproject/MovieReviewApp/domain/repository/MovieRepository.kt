@@ -5,6 +5,7 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import kotlinx.coroutines.flow.Flow
 
@@ -36,5 +37,6 @@ interface MovieRepository {
     fun getMovieGenres(): Flow<Resource<List<Genre>>>
     fun getMovieDetails(movieId: Long): Flow<Resource<MovieDetails>>
     fun getMovieReviews(movieId: Long, page: Int = 1): Flow<Resource<List<MovieReview>>>
+    fun getMovieVideos(movieId: Long): Flow<Resource<List<MovieVideo>>>
     fun getMovieWatchProviders(movieId: Long, countryCode: String = "US"): Flow<Resource<List<WatchProvider>>>
 }
