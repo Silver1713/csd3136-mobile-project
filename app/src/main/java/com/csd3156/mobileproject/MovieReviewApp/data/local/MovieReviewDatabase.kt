@@ -28,7 +28,7 @@ abstract class MovieReviewDatabase : RoomDatabase() {
                 context.applicationContext,
                 MovieReviewDatabase::class.java,
                 "movie_reviews.db"
-            ).fallbackToDestructiveMigration().build()
+            ).fallbackToDestructiveMigration(true).build()
         }
     }
 }
