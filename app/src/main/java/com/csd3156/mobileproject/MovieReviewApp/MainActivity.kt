@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,7 +66,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modifier, startDestination: Any = Main) {
-    val movieVM : MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory())
+    val context = LocalContext.current
+    val movieVM : MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory(context.applicationContext))
 
     NavHost(navController = controller, startDestination = startDestination) {
         composable<Main>{
@@ -103,18 +105,23 @@ fun MovieDetailRoute(
         movieListViewModel.loadMovieReviews(movieId)
         movieListViewModel.loadMovieWatchProviders(movieId)
         movieListViewModel.loadMovieVideos(movieId)
+        movieListViewModel.observeLocalReviews(movieId)
     }
 
     val isScreenLoading = uiState.selectedMovieDetails?.id != movieId && uiState.isLoading
+    val combinedReviews = uiState.selectedMovieLocalReviews + uiState.selectedMovieReviews
     MovieDetailScreen(
         modifier = modifier,
         movie = uiState.selectedMovieDetails,
-        reviews = uiState.selectedMovieReviews,
+        reviews = combinedReviews,
         videos = uiState.selectedMovieVideos,
         watchProviders = uiState.selectedMovieWatchProviders,
         isLoading = isScreenLoading,
         errorMessage = uiState.errorMessage,
-        onBack = onBack
+        onBack = onBack,
+        onSubmitReview = { author, rating, content, photoPath ->
+            movieListViewModel.addLocalReview(movieId, author, rating, content, photoPath)
+        }
     )
 }
 

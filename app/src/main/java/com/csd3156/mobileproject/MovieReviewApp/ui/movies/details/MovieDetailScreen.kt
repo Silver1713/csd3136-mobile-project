@@ -1,8 +1,13 @@
 package com.csd3156.mobileproject.MovieReviewApp.ui.movies.details
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +36,8 @@ import androidx.compose.material.icons.rounded.MicNone
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +46,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,6 +56,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.FileProvider
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
@@ -73,6 +84,8 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.Abs
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
+import java.io.File
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,8 +97,46 @@ fun MovieDetailScreen(
     isLoading: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
+    onSubmitReview: (author: String, rating: Double?, content: String, photoPath: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
+    var reviewerName by rememberSaveable { mutableStateOf("") }
+    var reviewContent by rememberSaveable { mutableStateOf("") }
+    var reviewRating by rememberSaveable { mutableStateOf(6f) }
+    var reviewPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingCapturePath by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val cameraPermissions = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+    val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            reviewPhotoPath = pendingCapturePath
+        } else {
+            pendingCapturePath?.let { deleteFileIfExists(it) }
+        }
+        pendingCapturePath = null
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        val granted = results.values.all { it }
+        if (granted) {
+            val (captureUri, absolutePath) = context.createReviewImageFile() ?: run {
+                Toast.makeText(context, "Unable to access camera", Toast.LENGTH_SHORT).show()
+                pendingCapturePath = null
+                return@rememberLauncherForActivityResult
+            }
+            pendingCapturePath = absolutePath
+            takePictureLauncher.launch(captureUri)
+        } else {
+            Toast.makeText(context, "Camera permission is required to add a photo", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     var trailerToPlay by remember { mutableStateOf<MovieVideo?>(null) }
     val primaryTrailer = remember(videos) {
         val youtubeVideos = videos.filter { it.site.equals("YouTube", ignoreCase = true) }
@@ -117,7 +168,8 @@ fun MovieDetailScreen(
                     onWatchTrailer = {
                         primaryTrailer?.let { trailerToPlay = it }
                     },
-                    onBack = onBack
+                    onBack = onBack,
+                    onWriteReview = { shouldShowReviewDialog = true }
                 )
             }
 
@@ -173,6 +225,45 @@ fun MovieDetailScreen(
             }
         }
     }
+
+    if (shouldShowReviewDialog) {
+        WriteReviewDialog(
+            name = reviewerName,
+            onNameChange = { reviewerName = it },
+            content = reviewContent,
+            onContentChange = { reviewContent = it },
+            rating = reviewRating,
+            onRatingChange = { reviewRating = it },
+            photoPath = reviewPhotoPath,
+            onAddPhoto = {
+                reviewPhotoPath?.let { deleteFileIfExists(it) }
+                reviewPhotoPath = null
+                permissionLauncher.launch(cameraPermissions)
+            },
+            onRemovePhoto = {
+                reviewPhotoPath?.let { deleteFileIfExists(it) }
+                reviewPhotoPath = null
+            },
+            onDismiss = {
+                shouldShowReviewDialog = false
+                reviewPhotoPath?.let { deleteFileIfExists(it) }
+                reviewPhotoPath = null
+                reviewerName = ""
+                reviewContent = ""
+                reviewRating = 6f
+            },
+            onSubmit = {
+                val normalizedRating = (reviewRating * 10).roundToInt() / 10.0
+                onSubmitReview(reviewerName.trim(), normalizedRating, reviewContent.trim(), reviewPhotoPath)
+                Toast.makeText(context, "Review saved locally", Toast.LENGTH_SHORT).show()
+                reviewerName = ""
+                reviewContent = ""
+                reviewRating = 6f
+                reviewPhotoPath = null
+                shouldShowReviewDialog = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -182,7 +273,8 @@ private fun MovieDetailContent(
     watchProviders: List<WatchProvider>,
     hasTrailer: Boolean,
     onWatchTrailer: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onWriteReview: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -216,7 +308,7 @@ private fun MovieDetailContent(
             MovieRatingSummary(movie = movie)
         }
         item {
-            ReviewActions()
+            ReviewActions(onWriteReview = onWriteReview)
         }
         if (reviews.isEmpty()) {
             item {
@@ -367,6 +459,97 @@ private fun MovieMetadataSeparator() {
             .size(4.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+    )
+}
+
+@Composable
+private fun WriteReviewDialog(
+    name: String,
+    onNameChange: (String) -> Unit,
+    content: String,
+    onContentChange: (String) -> Unit,
+    rating: Float,
+    onRatingChange: (Float) -> Unit,
+    photoPath: String?,
+    onAddPhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
+    onDismiss: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Write a Review") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text("Display name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = onContentChange,
+                    label = { Text("Your thoughts") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    maxLines = 6
+                )
+                Column {
+                    Text(
+                        text = "Rating: ${String.format("%.1f", rating)}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Slider(
+                        value = rating,
+                        onValueChange = onRatingChange,
+                        valueRange = 0f..10f
+                    )
+                }
+                if (photoPath != null) {
+                    Text(
+                        text = "Attached photo",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    LoadImage(
+                        url = Uri.fromFile(File(photoPath)).toString(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentDescription = "Review photo",
+                        contentScale = ContentScale.Crop
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(onClick = onAddPhoto) {
+                            Text("Retake photo")
+                        }
+                        TextButton(onClick = onRemovePhoto) {
+                            Text("Remove photo")
+                        }
+                    }
+                } else {
+                    TextButton(onClick = onAddPhoto) {
+                        Text("Add photo")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSubmit,
+                enabled = content.isNotBlank()
+            ) {
+                Text("Submit")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
 }
 
@@ -611,7 +794,7 @@ private fun RatingBreakdownRow(stars: Int, progress: Float) {
 }
 
 @Composable
-private fun ReviewActions() {
+private fun ReviewActions(onWriteReview: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -623,7 +806,8 @@ private fun ReviewActions() {
             subtitle = "Share your thoughts",
             icon = Icons.Rounded.Edit,
             modifier = Modifier.weight(1f),
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
+            onClick = onWriteReview
         )
         QuickActionCard(
             title = "Voice Note",
@@ -643,12 +827,14 @@ private fun QuickActionCard(
     icon: ImageVector,
     modifier: Modifier,
     containerColor: Color,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit = {}
 ) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
@@ -745,6 +931,18 @@ private fun ReviewCard(review: MovieReview) {
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis
             )
+            review.photoPath?.let { path ->
+                Spacer(Modifier.height(12.dp))
+                LoadImage(
+                    url = Uri.fromFile(File(path)).toString(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(16.dp)),
+                    contentDescription = "Review photo",
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
     }
 }
@@ -812,6 +1010,24 @@ private fun TrailerPlayerDialog(
                     }
                 )
             }
+        }
+    }
+}
+
+private fun Context.createReviewImageFile(): Pair<Uri, String>? {
+    return runCatching {
+        val imageDir = File(filesDir, "reviews").apply { if (!exists()) mkdirs() }
+        val imageFile = File.createTempFile("review_${System.currentTimeMillis()}", ".jpg", imageDir)
+        val contentUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", imageFile)
+        contentUri to imageFile.absolutePath
+    }.getOrNull()
+}
+
+private fun deleteFileIfExists(path: String) {
+    runCatching {
+        val file = File(path)
+        if (file.exists()) {
+            file.delete()
         }
     }
 }

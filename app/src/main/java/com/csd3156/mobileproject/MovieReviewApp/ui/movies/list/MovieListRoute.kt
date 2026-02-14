@@ -16,13 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 
 @Composable
 fun MovieListRoute(
     onMovieClick: (Long) -> Unit,
-    viewModel: MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory())
+    viewModel: MovieListViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
