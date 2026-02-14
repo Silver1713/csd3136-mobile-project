@@ -4,10 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,6 +35,8 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.main.Main
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.HomeScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.details.MovieDetailScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
+import com.csd3156.mobileproject.MovieReviewApp.ui.search.SearchScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.search.BrowseScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.theme.MovieReviewAppTheme
 import kotlinx.serialization.Serializable
 
@@ -65,7 +68,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modifier, startDestination: Any = Main) {
-    val movieVM : MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory())
+    val context = LocalContext.current
+    val movieVM : MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory(context.applicationContext))
 
     NavHost(navController = controller, startDestination = startDestination) {
         composable<Main>{
@@ -74,6 +78,14 @@ fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modif
                 modifier = modifier
             ) { movieId ->
                 controller.navigate(MovieDetailsDestination(movieId))
+            }
+        }
+        composable<SearchScreen>{
+            BrowseScreen (
+                 viewmodel =movieVM,
+                modifier = modifier
+            ){
+
             }
         }
         composable<MovieDetailsDestination> {
@@ -103,28 +115,26 @@ fun MovieDetailRoute(
         movieListViewModel.loadMovieReviews(movieId)
         movieListViewModel.loadMovieWatchProviders(movieId)
         movieListViewModel.loadMovieVideos(movieId)
+        movieListViewModel.observeLocalReviews(movieId)
     }
 
     val isScreenLoading = uiState.selectedMovieDetails?.id != movieId && uiState.isLoading
+    val combinedReviews = uiState.selectedMovieLocalReviews + uiState.selectedMovieReviews
     MovieDetailScreen(
         modifier = modifier,
         movie = uiState.selectedMovieDetails,
-        reviews = uiState.selectedMovieReviews,
+        reviews = combinedReviews,
         videos = uiState.selectedMovieVideos,
         watchProviders = uiState.selectedMovieWatchProviders,
         isLoading = isScreenLoading,
         errorMessage = uiState.errorMessage,
-        onBack = onBack
+        onBack = onBack,
+        onSubmitReview = { author, rating, content, photoPath ->
+            movieListViewModel.addLocalReview(movieId, author, rating, content, photoPath)
+        }
     )
 }
 
-@Composable
-fun Greeting(name: String){
-    Text(text = "Hello $name!")
-}
-
-@Serializable
-data object P1
 @Serializable
 data object P2
 
@@ -141,7 +151,7 @@ fun BottomBar(navController: NavHostController) {
     )
     val items = listOf(
         NavItem("Home", Main, Icons.Default.Home),
-        NavItem("Example1", P1, Icons.Default.Home),
+        NavItem("Search", SearchScreen, Icons.Default.Search),
         NavItem("Example2", P2, Icons.Default.Home),
     )
 

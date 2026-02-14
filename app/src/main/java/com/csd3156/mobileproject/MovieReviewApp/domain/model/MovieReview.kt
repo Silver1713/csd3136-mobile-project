@@ -6,5 +6,6 @@ data class MovieReview(
     val content: String,
     val url: String,
     val rating: Double?,
-    val createdAt: String
+    val createdAt: String,
+    val photoPath: String? = null
 )

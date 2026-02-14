@@ -76,7 +76,7 @@ enum class MovieContentSection {
 
 @Composable
 fun HomeScreen(
-    viewmodel: MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory()),
+    viewmodel: MovieListViewModel,
     modifier: Modifier = Modifier,
     onMovieClick: (Long) -> Unit
 ) {

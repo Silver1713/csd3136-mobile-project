@@ -145,7 +145,8 @@ fun ReviewDto.toDomain(): MovieReview = MovieReview(
     content = content.orEmpty(),
     url = url.orEmpty(),
     rating = authorDetails?.rating,
-    createdAt = createdAt.orEmpty()
+    createdAt = createdAt.orEmpty(),
+    photoPath = null
 )
 
 fun CountryWatchProvidersDto.toDomain(countryCode: String): List<WatchProvider> {
