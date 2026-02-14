@@ -75,17 +75,26 @@ fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modif
         composable<Main>{
             HomeScreen(
                 viewmodel = movieVM,
-                modifier = modifier
-            ) { movieId ->
-                controller.navigate(MovieDetailsDestination(movieId))
-            }
+                modifier = modifier,
+                onMovieClick = { movieId ->
+                    controller.navigate(MovieDetailsDestination(movieId))
+                },
+                onSearchSubmit = { query ->
+                    movieVM.updateSearchQuery(query)
+                    controller.navigate(SearchScreen) {
+                        popUpTo(Main) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
         }
         composable<SearchScreen>{
             BrowseScreen (
                  viewmodel =movieVM,
                 modifier = modifier
-            ){
-
+            ){ movieId ->
+                controller.navigate(MovieDetailsDestination(movieId))
             }
         }
         composable<MovieDetailsDestination> {

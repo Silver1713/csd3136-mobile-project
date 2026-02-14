@@ -25,6 +25,7 @@ data class MovieListUiState(
     val moviesPopular: List<Movie> = emptyList(),
     val moviesTrending: List<Movie> = emptyList(),
     val moviesSearchResults: List<Movie> = emptyList(),
+    val searchQuery: String = "",
     val moviesByGenre: List<Movie> = emptyList(),
     val moviesDiscovered: List<Movie> = emptyList(),
     val genres: List<Genre> = emptyList(),
@@ -105,13 +106,27 @@ class MovieListViewModel(
     }
 
     fun clearSearchMovie(){
-        _uiState.value = _uiState.value.copy(moviesSearchResults = emptyList(), errorMessage = null)
+        _uiState.value = _uiState.value.copy(
+            searchQuery = "",
+            moviesSearchResults = emptyList(),
+            errorMessage = null
+        )
     }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
+    }
+
     fun searchMovies(query: String, page: Int = 1, includeAdult: Boolean = false) {
         if (query.isBlank()) {
-            _uiState.value = _uiState.value.copy(moviesSearchResults = emptyList(), errorMessage = null)
+            _uiState.value = _uiState.value.copy(
+                searchQuery = "",
+                moviesSearchResults = emptyList(),
+                errorMessage = null
+            )
             return
         }
+        _uiState.value = _uiState.value.copy(searchQuery = query)
         viewModelScope.launch {
             repository.searchMovies(query = query, page = page, includeAdult = includeAdult).collect { resource ->
                 when (resource) {

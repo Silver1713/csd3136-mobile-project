@@ -28,20 +28,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,12 +77,14 @@ enum class MovieContentSection {
 fun HomeScreen(
     viewmodel: MovieListViewModel,
     modifier: Modifier = Modifier,
-    onMovieClick: (Long) -> Unit
+    onMovieClick: (Long) -> Unit,
+    onSearchSubmit: (String) -> Unit = {}
 ) {
     // Create HomeScreen ViewModel
     val homeVM: HomeScreenViewModel = viewModel(factory = HomeViewModelFactory())
     val isSearch by homeVM.isSearching.collectAsStateWithLifecycle()
     val uiState by viewmodel.uiState.collectAsStateWithLifecycle()
+    val searchQuery = uiState.searchQuery
     // Main Screen UI Here
     // Div Start
 
@@ -99,8 +100,12 @@ fun HomeScreen(
                 )
             )
     ) {
-        TitleSection(viewmodel)
-        if (uiState.moviesSearchResults.isNotEmpty()) {
+        TitleSection(
+            movieListViewModel = viewmodel,
+            searchQuery = searchQuery,
+            onSearchSubmit = onSearchSubmit
+        )
+        if (searchQuery.isNotBlank()) {
             homeVM.setIsSearching(true)
             LazyVerticalGrid(
 
@@ -189,14 +194,12 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun movieSearchBar(
-    viewmodel: MovieListViewModel,
+    query: String,
     onQueryChange: (query: String) -> Unit,
     modifier: Modifier = Modifier,
-    onSearch: (value: String) -> Unit
+    onSearch: (value: String) -> Unit,
+    onOpenSearch: (value: String) -> Unit
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var active by rememberSaveable { mutableStateOf(false) }
-
     DockedSearchBar(
         modifier = Modifier
             .fillMaxWidth()
@@ -206,24 +209,36 @@ fun movieSearchBar(
                 modifier = modifier,
                 query = query,
                 onQueryChange = {
-
-                    query = it
-                    onQueryChange(query)
+                    onQueryChange(it)
                 },
-                onSearch = { onSearch(query) },
+                onSearch = {
+                    onSearch(query)
+                    onOpenSearch(query)
+                },
                 expanded = false,
-                onExpandedChange = { active = it },
+                onExpandedChange = { },
                 placeholder = {
                     Text(
                         "Search movies",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        onSearch(query)
+                        onOpenSearch(query)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "Open search"
+                        )
+                    }
                 }
             )
         },
         expanded = false,
-        onExpandedChange = { active = it },
+        onExpandedChange = { },
         shape = RoundedCornerShape(18.dp),
         colors = SearchBarDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -235,7 +250,11 @@ fun movieSearchBar(
 }
 
 @Composable
-fun TitleSection(movieListViewModel: MovieListViewModel) {
+fun TitleSection(
+    movieListViewModel: MovieListViewModel,
+    searchQuery: String,
+    onSearchSubmit: (String) -> Unit = {}
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -253,16 +272,24 @@ fun TitleSection(movieListViewModel: MovieListViewModel) {
             .padding(16.dp)
             .fillMaxWidth()
     ) {
-        movieSearchBar(movieListViewModel, { query ->
-            if (query.isEmpty()){
-                movieListViewModel.clearSearchMovie()
-
-            } else {
-                movieListViewModel.searchMovies(query)
+        movieSearchBar(
+            query = searchQuery,
+            onQueryChange = { query ->
+                if (query.isEmpty()) {
+                    movieListViewModel.clearSearchMovie()
+                } else {
+                    movieListViewModel.updateSearchQuery(query)
+                    movieListViewModel.searchMovies(query)
+                }
+            },
+            onSearch = { value ->
+                movieListViewModel.updateSearchQuery(value)
+                movieListViewModel.searchMovies(value)
+            },
+            onOpenSearch = { value ->
+                onSearchSubmit(value)
             }
-        }) { value ->
-            movieListViewModel.searchMovies(value)
-        }
+        )
     }
 }
 
