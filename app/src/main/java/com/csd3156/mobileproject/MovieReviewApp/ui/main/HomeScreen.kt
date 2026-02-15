@@ -76,8 +76,9 @@ enum class MovieContentSection {
 
 @Composable
 fun HomeScreen(
-    viewmodel: MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory()),
-    modifier: Modifier = Modifier
+    viewmodel: MovieListViewModel,
+    modifier: Modifier = Modifier,
+    onMovieClick: (Long) -> Unit
 ) {
     // Create HomeScreen ViewModel
     val homeVM: HomeScreenViewModel = viewModel(factory = HomeViewModelFactory())
@@ -112,7 +113,7 @@ fun HomeScreen(
             ) {
                 items(uiState.moviesSearchResults
                     .sortedByDescending { it.releaseDate }){
-                        movie -> MovieCard(
+                    movie -> MovieCard(
                     0,
                     movie,
                     false,
@@ -120,7 +121,7 @@ fun HomeScreen(
                     false,
                     false
 
-                ) { }
+                ) { onMovieClick(movie.id) }
 
                 }
             }
@@ -145,7 +146,8 @@ fun HomeScreen(
                 RowingMoviesContent(
                     viewmodel,
                     movieType = MovieContentSection.MOVIE_REC,
-                    mod = Modifier.padding(0.dp)
+                    mod = Modifier.padding(0.dp),
+                    onMovieClick = onMovieClick
                 )
                 Sections(
                     "Trending Now",
@@ -158,7 +160,8 @@ fun HomeScreen(
                 RowingMoviesContent(
                     viewmodel,
                     movieType = MovieContentSection.MOVIE_TRENDING,
-                    mod = Modifier
+                    mod = Modifier,
+                    onMovieClick = onMovieClick
                 )
                 Sections(
                     "Explore Genre",
@@ -171,7 +174,8 @@ fun HomeScreen(
                 GridMovieContent(
                     movieListViewModel = viewmodel,
                     movieType = MovieContentSection.MOVIE_EXPLORE,
-                    mod = Modifier
+                    mod = Modifier,
+                    onMovieClick = onMovieClick
 
                 )
             }
@@ -279,7 +283,8 @@ fun makeProfileIcon(drawableId: Int, modifier: Modifier) {
 fun GridMovieContent(
     movieListViewModel: MovieListViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
-    mod: Modifier = Modifier
+    mod: Modifier = Modifier,
+    onMovieClick: (Long) -> Unit
 ) {
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
     Column(modifier = mod) {
@@ -300,9 +305,7 @@ fun GridMovieContent(
                     true,
                     false,
                     false
-                ) {
-
-                }
+                ) { onMovieClick(movie.id) }
 
 
             }
@@ -314,7 +317,8 @@ fun GridMovieContent(
 fun RowingMoviesContent(
     movieListViewModel: MovieListViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
-    mod: Modifier = Modifier
+    mod: Modifier = Modifier,
+    onMovieClick: (Long) -> Unit
 ) {
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -342,9 +346,7 @@ fun RowingMoviesContent(
                         true,
                         true,
                         false
-                    ) {
-
-                    }
+                    ) { onMovieClick(movie.id) }
 
                     MovieContentSection.MOVIE_TRENDING -> MovieCard(
                         index,
@@ -353,9 +355,7 @@ fun RowingMoviesContent(
                         true,
                         false,
                         true
-                    ) {
-
-                    }
+                    ) { onMovieClick(movie.id) }
 
                     MovieContentSection.MOVIE_EXPLORE -> {}
                     else -> {}

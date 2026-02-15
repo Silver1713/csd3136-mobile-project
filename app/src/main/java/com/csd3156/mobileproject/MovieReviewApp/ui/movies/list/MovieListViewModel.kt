@@ -1,20 +1,25 @@
 package com.csd3156.mobileproject.MovieReviewApp.ui.movies.list
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.csd3156.mobileproject.MovieReviewApp.common.Resource
+import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
+import com.csd3156.mobileproject.MovieReviewApp.domain.repository.LocalReviewRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 data class MovieListUiState(
     val moviesPopular: List<Movie> = emptyList(),
@@ -25,6 +30,8 @@ data class MovieListUiState(
     val genres: List<Genre> = emptyList(),
     val selectedMovieDetails: MovieDetails? = null,
     val selectedMovieReviews: List<MovieReview> = emptyList(),
+    val selectedMovieLocalReviews: List<MovieReview> = emptyList(),
+    val selectedMovieVideos: List<MovieVideo> = emptyList(),
     val selectedMovieWatchProviders: List<WatchProvider> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null
@@ -32,11 +39,13 @@ data class MovieListUiState(
 )
 
 class MovieListViewModel(
-    private val repository: MovieRepository
+    private val repository: MovieRepository,
+    private val localReviewRepository: LocalReviewRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MovieListUiState(isLoading = true))
     val uiState: StateFlow<MovieListUiState> = _uiState.asStateFlow()
+    private var localReviewsJob: Job? = null
 
     init {
         refresh()
@@ -261,6 +270,30 @@ class MovieListViewModel(
         }
     }
 
+    fun loadMovieVideos(movieId: Long) {
+        viewModelScope.launch {
+            repository.getMovieVideos(movieId = movieId).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.value =
+                        _uiState.value.copy(isLoading = true, errorMessage = null)
+
+                    is Resource.Success -> _uiState.value =
+                        _uiState.value.copy(
+                            selectedMovieVideos = resource.data,
+                            isLoading = false,
+                            errorMessage = null
+                        )
+
+                    is Resource.Error -> _uiState.value =
+                        _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                        )
+                }
+            }
+        }
+    }
+
     fun loadMovieWatchProviders(movieId: Long, countryCode: String = "US") {
         viewModelScope.launch {
             repository.getMovieWatchProviders(movieId = movieId, countryCode = countryCode).collect { resource ->
@@ -285,22 +318,40 @@ class MovieListViewModel(
         }
     }
 
+    fun observeLocalReviews(movieId: Long) {
+        localReviewsJob?.cancel()
+        localReviewsJob = viewModelScope.launch {
+            localReviewRepository.getReviewsForMovie(movieId).collect { reviews ->
+                _uiState.value = _uiState.value.copy(selectedMovieLocalReviews = reviews)
+            }
+        }
+    }
+
+    fun addLocalReview(movieId: Long, author: String, rating: Double?, content: String, photoPath: String?) {
+        if (content.isBlank()) return
+        viewModelScope.launch {
+            localReviewRepository.addReview(movieId, author, rating, content, photoPath)
+        }
+    }
+
     companion object {
-        fun provideFactory(): ViewModelProvider.Factory {
-            val repository = MovieRepositoryImpl.create()
-            return MovieListViewModelFactory(repository)
+        fun provideFactory(context: Context): ViewModelProvider.Factory {
+            val movieRepository = MovieRepositoryImpl.create()
+            val localReviewRepository = LocalReviewRepositoryImpl.create(context)
+            return MovieListViewModelFactory(movieRepository, localReviewRepository)
         }
     }
 }
 
 class MovieListViewModelFactory(
-    private val repository: MovieRepository
+    private val repository: MovieRepository,
+    private val localReviewRepository: LocalReviewRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(MovieListViewModel::class.java)) {
             "Unknown ViewModel class: $modelClass"
         }
         @Suppress("UNCHECKED_CAST")
-        return MovieListViewModel(repository) as T
+        return MovieListViewModel(repository, localReviewRepository) as T
     }
 }

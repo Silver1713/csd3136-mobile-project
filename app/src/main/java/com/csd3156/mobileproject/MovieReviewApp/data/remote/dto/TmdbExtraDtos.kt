@@ -4,6 +4,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.TmdbApiService
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.squareup.moshi.Json
 
@@ -89,6 +90,16 @@ data class VideoItemDto(
     val id: String?
 )
 
+fun VideoItemDto.toDomain(): MovieVideo = MovieVideo(
+    id = id.orEmpty(),
+    name = name.orEmpty(),
+    key = key.orEmpty(),
+    site = site.orEmpty(),
+    type = type.orEmpty(),
+    official = official ?: false,
+    publishedAt = publishedAt.orEmpty()
+)
+
 data class ReviewListDto(
     val id: Long,
     val page: Int,
@@ -134,7 +145,8 @@ fun ReviewDto.toDomain(): MovieReview = MovieReview(
     content = content.orEmpty(),
     url = url.orEmpty(),
     rating = authorDetails?.rating,
-    createdAt = createdAt.orEmpty()
+    createdAt = createdAt.orEmpty(),
+    photoPath = null
 )
 
 fun CountryWatchProvidersDto.toDomain(countryCode: String): List<WatchProvider> {
