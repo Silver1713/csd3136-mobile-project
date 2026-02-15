@@ -38,6 +38,13 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewMode
 import com.csd3156.mobileproject.MovieReviewApp.ui.theme.MovieReviewAppTheme
 import kotlinx.serialization.Serializable
 
+import com.csd3156.mobileproject.MovieReviewApp.ui.main.Profile
+import com.csd3156.mobileproject.MovieReviewApp.ui.main.ProfileScreen
+import androidx.compose.material.icons.filled.AccountCircle
+
+
+
+
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +78,10 @@ fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modif
     NavHost(navController = controller, startDestination = startDestination) {
         composable<Main>{
             HomeScreen(movieVM,modifier)
+        }
+
+        composable<Profile> {
+            ProfileScreen(modifier = modifier)
         }
     }
 }
@@ -129,6 +140,7 @@ fun BottomBar(navController: NavHostController) {
         NavItem("Home", Main, Icons.Default.Home),
         NavItem("Example1", P1, Icons.Default.Home),
         NavItem("Example2", P2, Icons.Default.Home),
+        NavItem("Profile", Profile, Icons.Default.AccountCircle)
     )
 
     val backStackEntry by navController.currentBackStackEntryAsState()
