@@ -1,6 +1,4 @@
 package com.csd3156.mobileproject.MovieReviewApp.ui.main
-
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,12 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -46,10 +42,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -179,7 +175,7 @@ fun HomeScreen(
                 GridMovieContent(
                     movieListViewModel = viewmodel,
                     movieType = MovieContentSection.MOVIE_EXPLORE,
-                    mod = Modifier,
+                    modifier = Modifier,
                     onMovieClick = onMovieClick
 
                 )
@@ -193,7 +189,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun movieSearchBar(
+fun MovieSearchBar(
     query: String,
     onQueryChange: (query: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -260,8 +256,8 @@ fun TitleSection(
     ) {
         Sections("Discover", "What to watch today?", Modifier.padding(16.dp))
         Spacer(modifier = Modifier.weight(1f))
-        makeProfileIcon(
-            R.drawable.ic_launcher_background, Modifier
+        MakeProfileIcon(
+            Icons.Filled.AccountCircle, Modifier
                 .padding(16.dp)
                 .size(64.dp)
         )
@@ -272,7 +268,7 @@ fun TitleSection(
             .padding(16.dp)
             .fillMaxWidth()
     ) {
-        movieSearchBar(
+        MovieSearchBar(
             query = searchQuery,
             onQueryChange = { query ->
                 if (query.isEmpty()) {
@@ -294,7 +290,7 @@ fun TitleSection(
 }
 
 @Composable
-fun makeProfileIcon(drawableId: Int, modifier: Modifier) {
+fun MakeProfileIcon(drawableVector: ImageVector, modifier: Modifier) {
     Box(
         modifier = modifier
             .clip(CircleShape)
@@ -303,7 +299,7 @@ fun makeProfileIcon(drawableId: Int, modifier: Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.Filled.AccountCircle,
+            imageVector = drawableVector,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             contentDescription = null,
             modifier = Modifier.size(42.dp)
@@ -316,11 +312,11 @@ fun makeProfileIcon(drawableId: Int, modifier: Modifier) {
 fun GridMovieContent(
     movieListViewModel: MovieListViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
-    mod: Modifier = Modifier,
+    modifier: Modifier = Modifier,
     onMovieClick: (Long) -> Unit
 ) {
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
-    Column(modifier = mod) {
+    Column(modifier = modifier) {
         LazyVerticalGrid(
             modifier = Modifier.height(600.dp),
             contentPadding = PaddingValues(16.dp),
