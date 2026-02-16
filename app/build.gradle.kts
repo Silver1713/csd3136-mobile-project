@@ -91,6 +91,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
 
+    implementation("com.github.haifengl:smile-core:5.0.0")
+
 
 
 
