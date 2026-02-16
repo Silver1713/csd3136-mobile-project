@@ -68,7 +68,7 @@ interface TmdbApiService {
     suspend fun getMovieWatchProviders(@Path("movie_id") movieId: Long): WatchProvidersResponseDto
 
     companion object {
-        const val BASE_URL = "https://api.themoviedb.org/3/"
-        const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
+        const val BASE_URL = "https://api.themoviedb.org/3/"   //TMDB API to request data from
+        const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"  //Combined with image filepaths to get the actual image
     }
 }
