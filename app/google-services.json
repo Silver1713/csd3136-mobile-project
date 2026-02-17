@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "301953500541",
+    "project_id": "movie-review-app-9a0ca",
+    "storage_bucket": "movie-review-app-9a0ca.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:301953500541:android:6b98899746ae4a2854b814",
+        "android_client_info": {
+          "package_name": "com.csd3156.mobileproject.MovieReviewApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbtFCqnZhNskcv4RfTt1tkAAq5R3o5mTU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

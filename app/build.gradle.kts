@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 
+    alias(libs.plugins.google.services)
+
 
 }
 
@@ -92,6 +94,14 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.at.favre.bcrypt)
+
+    // Import Firebase BOM
+    implementation(platform(libs.firebase.bom))
+
+    // Firebase products
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
 
 
 

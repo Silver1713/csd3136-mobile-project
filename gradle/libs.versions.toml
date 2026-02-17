@@ -25,6 +25,8 @@ okhttp = "5.3.2"
 moshi = "1.15.2"
 hilt = "2.57.1"
 bcrypt = "0.10.2"
+google-services = "4.4.4"
+firebase-bom = "34.9.0"
 
 
 [libraries]
@@ -70,6 +72,13 @@ dagger-hilt-android = { group = "com.google.dagger", name = "hilt-android", vers
 dagger-hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 at-favre-bcrypt = { group = "at.favre.lib", name = "bcrypt", version.ref = "bcrypt" }
 
+# Firebase BOM (controls all Firebase versions)
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+
+# Firebase products in use
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-storage = { module = "com.google.firebase:firebase-storage" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -78,5 +87,6 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization"}
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
 
 
