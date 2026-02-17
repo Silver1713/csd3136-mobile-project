@@ -43,6 +43,8 @@ import kotlinx.serialization.Serializable
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.Profile
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.ProfileScreen
 import androidx.compose.material.icons.filled.AccountCircle
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.Watchlist
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistScreen
 
 
 
@@ -106,8 +108,22 @@ fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modif
         }
 
         composable<Profile> {
-            ProfileScreen(modifier = modifier)
+            ProfileScreen(
+                modifier = modifier,
+                onMyWatchlist = { controller.navigate(Watchlist)}
+            )
         }
+
+        composable<Watchlist> {
+            WatchlistScreen(
+                onBack = { controller.popBackStack() },
+                onMovieClick = { movieId ->
+                    controller.navigate(MovieDetailsDestination(movieId))
+                }
+            )
+        }
+
+
     }
 }
 

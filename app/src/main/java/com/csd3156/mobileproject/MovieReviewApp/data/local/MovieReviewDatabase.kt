@@ -4,14 +4,20 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistDao
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistMovie
 
 @Database(
-    entities = [ReviewEntity::class],
-    version = 2,
+    entities = [
+        ReviewEntity::class,
+        WatchlistMovie::class
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class MovieReviewDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
+    abstract fun watchlistDao(): WatchlistDao
 
     companion object {
         @Volatile
