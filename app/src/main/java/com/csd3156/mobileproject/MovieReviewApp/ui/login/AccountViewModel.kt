@@ -24,15 +24,6 @@ class AccountViewModel @Inject constructor (
 
 
 
-    private suspend fun validate(
-        username: String,
-        password: String
-
-    ) : Boolean {
-        val account = repository.findAccountByUser(username) ?: return false
-        return repository.verifyPassword(account, password)
-    }
-
     fun login(
         username: String,
         password: String
@@ -83,6 +74,16 @@ class AccountViewModel @Inject constructor (
             it.copy(
                 accountSelected = null,
                 loginErrorMessage = null
+            )
+        }
+    }
+
+    fun clearRegisterResult() {
+        _uiState.update {
+            it.copy(
+                accountSelected = null,
+                registerErrorMessage = null,
+                registerSuccessMessage = null
             )
         }
     }

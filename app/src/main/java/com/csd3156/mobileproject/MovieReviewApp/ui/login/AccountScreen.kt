@@ -140,7 +140,9 @@ fun accountScreen(accountVM : AccountViewModel, modifier: Modifier, onNavigate :
                                 onNavigate(account)
                             }
                         } else {
-                            RegisterForm(accountVM)
+                            RegisterForm(accountVM) { account ->
+                                onNavigate(account)
+                            }
                         }
                     }
                 }
@@ -243,12 +245,7 @@ private fun LoginForm(accountVM: AccountViewModel,onSubmit: (account : Account) 
             onClick = {
                 submitAttempted = true
                 if (usernameError == null && passwordError == null) {
-
-
                     accountVM.login(username, password)
-
-
-
                 }
             },
             enabled = !accountUIState.isLoginLoading,
@@ -277,7 +274,7 @@ private fun LoginForm(accountVM: AccountViewModel,onSubmit: (account : Account) 
 }
 
 @Composable
-private fun RegisterForm(accountVM: AccountViewModel) {
+private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: Account) -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
     var username by rememberSaveable { mutableStateOf("") }
     var bio by rememberSaveable { mutableStateOf("") }
@@ -297,6 +294,15 @@ private fun RegisterForm(accountVM: AccountViewModel) {
         else -> null
     }
     val uiState by accountVM.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(uiState.registerSuccessMessage, uiState.accountSelected) {
+        if (uiState.registerSuccessMessage != null && uiState.accountSelected != null) {
+            val  account = uiState.accountSelected
+            if (account != null){
+                onSubmit(account)
+            }
+            accountVM.clearRegisterResult()
+        }
+    }
 
 
     Column(
@@ -353,27 +359,30 @@ private fun RegisterForm(accountVM: AccountViewModel) {
                 submitAttempted = true
                 if (nameError == null && usernameError == null && passwordError == null && confirmPasswordError == null) {
                     accountVM.register(username, password, name, bio)
-                    uiState.registerSuccessMessage?.isEmpty()?.let {
-                        if (!it){
-                            accountVM.clearLoginResult()
-                            accountVM.login(username, password)
-
-
-                        }
-                    }
-
-
                 }
             },
+            enabled = !uiState.isRegisterLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("Create account")
+            if (uiState.isRegisterLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Create account")
+            }
         }
-        Text(uiState.registerErrorMessage ?: "")
-
+        if (uiState.registerErrorMessage != null) {
+            Text(
+                text = uiState.registerErrorMessage ?: "",
+                color = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
 

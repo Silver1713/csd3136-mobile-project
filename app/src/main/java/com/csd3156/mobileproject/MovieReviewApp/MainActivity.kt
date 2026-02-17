@@ -98,7 +98,11 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
             ) {
                 account ->
                 rootVM.loginAccount(account.id)
-                controller.navigate(Main)
+                controller.navigate(Main){
+                    popUpTo(AccountScreen){
+                        inclusive = true
+                    }
+                }
 
             }
         }
