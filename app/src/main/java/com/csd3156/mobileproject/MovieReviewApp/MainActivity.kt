@@ -43,10 +43,17 @@ import kotlinx.serialization.Serializable
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.Profile
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.ProfileScreen
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.csd3156.mobileproject.MovieReviewApp.ui.AppViewModel
+import com.csd3156.mobileproject.MovieReviewApp.ui.login.AccountScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.login.AccountViewModel
+import com.csd3156.mobileproject.MovieReviewApp.ui.login.accountScreen
+import dagger.hilt.android.AndroidEntryPoint
 
 
 
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,17 +63,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             MovieReviewAppTheme(darkTheme = true) {
                 val navController = rememberNavController()
+                val appViewModel = hiltViewModel<AppViewModel>()
+                val rootState by appViewModel.uiState.collectAsStateWithLifecycle()
 
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     topBar = {
                     },
                     bottomBar = {
-                        BottomBar(navController)
+                        if (rootState.isLoggedIn){
+                            BottomBar(navController)
+                        }
                     }
                 ) {
 
-                    MovieReviewNavHost(navController, modifier = Modifier.padding(it))
+                    MovieReviewNavHost(rootVM = appViewModel, navController, modifier = Modifier.padding(it),
+                        startDestination = AccountScreen)
                 }
             }
         }
@@ -74,13 +86,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modifier, startDestination: Any = Main) {
+fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modifier: Modifier = Modifier, startDestination: Any = Main) {
     val context = LocalContext.current
     val movieVM : MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory(context.applicationContext))
-
+    val accountVM : AccountViewModel = hiltViewModel()
     NavHost(navController = controller, startDestination = startDestination) {
+        composable <AccountScreen>{
+            accountScreen(
+                accountVM = accountVM,
+                modifier = modifier,
+            ) {
+                account ->
+                rootVM.loginAccount(account.id)
+                controller.navigate(Main)
+
+            }
+        }
         composable<Main>{
             HomeScreen(
+
                 viewmodel = movieVM,
                 modifier = modifier,
                 onMovieClick = { movieId ->

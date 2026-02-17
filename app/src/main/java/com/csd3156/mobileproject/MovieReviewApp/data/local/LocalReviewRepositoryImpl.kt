@@ -1,6 +1,7 @@
 package com.csd3156.mobileproject.MovieReviewApp.data.local
 
 import android.content.Context
+import com.csd3156.mobileproject.MovieReviewApp.di.IoDispatcher
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.LocalReviewRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -10,10 +11,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
+import javax.inject.Inject
 
-class LocalReviewRepositoryImpl(
+class LocalReviewRepositoryImpl @Inject constructor(
     private val reviewDao: ReviewDao,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : LocalReviewRepository {
 
     override fun getReviewsForMovie(movieId: Long): Flow<List<MovieReview>> {
@@ -59,10 +61,17 @@ class LocalReviewRepositoryImpl(
         )
     }
 
+    @Deprecated(
+        message = "Legacy constructor, use Hilt instead"
+    )
     companion object {
+        @Deprecated(
+            message = "Legacy constructor, use Hilt injection instead"
+        )
         fun create(context: Context): LocalReviewRepositoryImpl {
             val database = MovieReviewDatabase.getInstance(context)
-            return LocalReviewRepositoryImpl(database.reviewDao())
+            return LocalReviewRepositoryImpl(database.reviewDao(),
+                Dispatchers.IO)
         }
     }
 }

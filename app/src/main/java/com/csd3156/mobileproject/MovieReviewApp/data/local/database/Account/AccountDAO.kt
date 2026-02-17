@@ -23,8 +23,8 @@ interface AccountDAO {
     fun observeAccountByUUID(uuid: UUID): Flow<Account?>
     @Query("SELECT * FROM accounts WHERE accounts.id = :id LIMIT 1")
     fun observeAccountById(id: Int): Flow<Account?>
-    @Query("SELECT * FROM accounts WHERE accounts.username = :username")
-    suspend fun getAccountByUsername(username: String): List<Account>
+    @Query("SELECT * FROM accounts WHERE accounts.username = :username LIMIT 1")
+    suspend fun getAccountByUsername(username: String): Account?
 
     // Insert
     @Insert

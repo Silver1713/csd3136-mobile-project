@@ -13,7 +13,7 @@ data class Account(
     val id : Int = 0,
     val uuid : UUID,
     val username : String,
-    val password : String? = null,
+    val hashed_password : String? = null,
     val name : String?,
     val bio : String?,
     val createdAt: Date = Date(),
