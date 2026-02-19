@@ -2,26 +2,35 @@ package com.csd3156.mobileproject.MovieReviewApp.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import at.favre.lib.crypto.bcrypt.BCrypt
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Account
-import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.AccountRepository
+import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class AccountViewModel @Inject constructor (
+class AccountViewModel @Inject constructor(
     private val repository: AccountRepository
 ) : ViewModel() {
 
-    private val _uiState : MutableStateFlow<AccountUIState> = MutableStateFlow(AccountUIState())
-    val uiState : StateFlow<AccountUIState> = _uiState.asStateFlow()
+    private val _uiState: MutableStateFlow<AccountUIState> = MutableStateFlow(AccountUIState())
+    val uiState: StateFlow<AccountUIState> = _uiState.asStateFlow()
 
+
+    val activeUser : Flow<AccountDomain?> = repository.getActiveAccountRoom()
+
+    init {
+        viewModelScope.launch {
+            repository.refreshActiveAccountRemote()
+        }
+    }
 
 
     fun login(
@@ -38,13 +47,14 @@ class AccountViewModel @Inject constructor (
                 )
             }
 
-            val account = repository.findAccountByUser(username)
-            val isValid = account != null && repository.verifyPassword(account, password)
 
-            if (isValid) {
+            val accountDomain: AccountDomain? = repository.validateLoginAccount(username, password)
+
+            if (accountDomain != null) {
+
                 _uiState.update {
                     it.copy(
-                        accountSelected = account,
+                        accountSelected = accountDomain,
                         isLoginLoading = false,
                         loginErrorMessage = null
                     )
@@ -89,6 +99,7 @@ class AccountViewModel @Inject constructor (
     }
 
     fun register(
+        email: String,
         username: String,
         password: String,
         name: String? = null,
@@ -103,7 +114,7 @@ class AccountViewModel @Inject constructor (
                 )
             }
 
-            val normalizedUsername = username.trim()
+            val normalizedUsername = username.trim().lowercase()
             if (normalizedUsername.isEmpty()) {
                 _uiState.update {
                     it.copy(
@@ -124,43 +135,40 @@ class AccountViewModel @Inject constructor (
                 return@launch
             }
 
-            val existing = repository.findAccountByUser(normalizedUsername)
-            if (existing != null) {
-                _uiState.update {
-                    it.copy(
-                        isRegisterLoading = false,
-                        registerErrorMessage = "Username already exists"
-                    )
-                }
-                return@launch
-            }
 
-            val hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray())
-            val newAccount = Account(
-                uuid = UUID.randomUUID(),
-                username = normalizedUsername,
-                hashed_password = hashedPassword,
-                name = name?.trim()?.ifBlank { null },
-                bio = bio?.trim()?.ifBlank { null }
-            )
+            val result: RequestResult<String?> =
+                repository.registerAccount(email, normalizedUsername, password)
+            when (result) {
+                is RequestResult.Success -> {
+                    val uid = result.data
+                    if (uid != null) {
+                        val newAccount = repository.getAccountByUID(uid)
+                        _uiState.update {
+                            it.copy(
+                                accountSelected = newAccount,
+                                isRegisterLoading = false,
+                                registerSuccessMessage = "Account created successfully",
+                                registerErrorMessage = null
+                            )
+                        }
+                    }
 
-            val createdId = repository.createAccount(newAccount)
-            if (createdId > 0) {
-                _uiState.update {
-                    it.copy(
-                        accountSelected = newAccount.copy(id = createdId.toInt()),
-                        isRegisterLoading = false,
-                        registerSuccessMessage = "Account created successfully",
-                        registerErrorMessage = null
-                    )
                 }
-            } else {
-                _uiState.update {
-                    it.copy(
-                        isRegisterLoading = false,
-                        registerErrorMessage = "Failed to create account"
-                    )
+
+                is RequestResult.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isRegisterLoading = false,
+                            registerErrorMessage = "Error creating account: ${result.message}"
+                        )
+
+
+                    }
+
+
                 }
+
+
             }
         }
     }
@@ -175,14 +183,11 @@ class AccountViewModel @Inject constructor (
     }
 
 
-
-
-
 }
 
 
-data class AccountUIState (
-    val accountSelected : Account? = null,
+data class AccountUIState(
+    val accountSelected: AccountDomain? = null,
     val isLoginLoading: Boolean = false,
     val loginErrorMessage: String? = null,
     val isRegisterLoading: Boolean = false,

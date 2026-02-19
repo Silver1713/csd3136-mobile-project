@@ -38,11 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.MovieCard
-import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -57,11 +56,14 @@ private enum class BrowseSortOption(val label: String, val sortBy: String) {
 
 @Composable
 fun BrowseScreen(
-    viewmodel: MovieListViewModel = viewModel(),
+    browseScreenVM: browseMovieViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
     onMovieClick: (Long) -> Unit
 ){
-    val uiState by viewmodel.uiState.collectAsStateWithLifecycle()
+
+
+
+    val uiState by browseScreenVM.uiState.collectAsStateWithLifecycle()
     val query = uiState.searchQuery
     var selectedSortName by rememberSaveable { mutableStateOf(BrowseSortOption.Popularity.name) }
     val selectedGenres = remember { mutableStateListOf<Long>() }
@@ -71,7 +73,7 @@ fun BrowseScreen(
 
     LaunchedEffect(selectedSort.sortBy, selectedGenreKey, query.isBlank()) {
         if (query.isBlank()) {
-            viewmodel.discoverMovies(
+            browseScreenVM.discoverMovies(
                 sortBy = selectedSort.sortBy,
                 genreIds = selectedGenres.takeIf { it.isNotEmpty() }?.toList(),
                 voteCountGte = if (selectedSort == BrowseSortOption.TopRated) 200 else null
@@ -106,11 +108,11 @@ fun BrowseScreen(
                 .padding(top = 12.dp),
             value = query,
             onValueChange = {
-                viewmodel.updateSearchQuery(it)
+                browseScreenVM.updateSearchQuery(it)
                 if (it.isBlank()) {
-                    viewmodel.clearSearchMovie()
+                    browseScreenVM.clearSearchMovie()
                 } else {
-                    viewmodel.searchMovies(it)
+                    browseScreenVM.searchMovies(it)
                 }
             },
             leadingIcon = {
@@ -119,8 +121,8 @@ fun BrowseScreen(
             trailingIcon = {
                 if (query.isNotBlank()) {
                     IconButton(onClick = {
-                        viewmodel.updateSearchQuery("")
-                        viewmodel.clearSearchMovie()
+                        browseScreenVM.updateSearchQuery("")
+                        browseScreenVM.clearSearchMovie()
                     }) {
                         Icon(imageVector = Icons.Default.Clear, contentDescription = "Clear search")
                     }

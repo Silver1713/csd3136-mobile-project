@@ -48,8 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.csd3156.mobileproject.MovieReviewApp.R
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
@@ -71,15 +71,14 @@ enum class MovieContentSection {
 
 @Composable
 fun HomeScreen(
-    viewmodel: MovieListViewModel,
     modifier: Modifier = Modifier,
     onMovieClick: (Long) -> Unit,
     onSearchSubmit: (String) -> Unit = {}
 ) {
     // Create HomeScreen ViewModel
-    val homeVM: HomeScreenViewModel = viewModel(factory = HomeViewModelFactory())
+    val homeVM: HomeScreenViewModel = hiltViewModel()
     val isSearch by homeVM.isSearching.collectAsStateWithLifecycle()
-    val uiState by viewmodel.uiState.collectAsStateWithLifecycle()
+    val uiState by homeVM.uiState.collectAsStateWithLifecycle()
     val searchQuery = uiState.searchQuery
     // Main Screen UI Here
     // Div Start
@@ -97,7 +96,7 @@ fun HomeScreen(
             )
     ) {
         TitleSection(
-            movieListViewModel = viewmodel,
+            homeViewModel = homeVM,
             searchQuery = searchQuery,
             onSearchSubmit = onSearchSubmit
         )
@@ -145,7 +144,7 @@ fun HomeScreen(
                     )
                 )
                 RowingMoviesContent(
-                    viewmodel,
+                    homeVM,
                     movieType = MovieContentSection.MOVIE_REC,
                     mod = Modifier.padding(0.dp),
                     onMovieClick = onMovieClick
@@ -159,7 +158,7 @@ fun HomeScreen(
                     )
                 )
                 RowingMoviesContent(
-                    viewmodel,
+                    homeVM,
                     movieType = MovieContentSection.MOVIE_TRENDING,
                     mod = Modifier,
                     onMovieClick = onMovieClick
@@ -173,7 +172,7 @@ fun HomeScreen(
                     )
                 )
                 GridMovieContent(
-                    movieListViewModel = viewmodel,
+                    homeViewModel = homeVM,
                     movieType = MovieContentSection.MOVIE_EXPLORE,
                     modifier = Modifier,
                     onMovieClick = onMovieClick
@@ -247,7 +246,7 @@ fun MovieSearchBar(
 
 @Composable
 fun TitleSection(
-    movieListViewModel: MovieListViewModel,
+    homeViewModel: HomeScreenViewModel,
     searchQuery: String,
     onSearchSubmit: (String) -> Unit = {}
 ) {
@@ -272,15 +271,15 @@ fun TitleSection(
             query = searchQuery,
             onQueryChange = { query ->
                 if (query.isEmpty()) {
-                    movieListViewModel.clearSearchMovie()
+                    homeViewModel.clearSearchMovie()
                 } else {
-                    movieListViewModel.updateSearchQuery(query)
-                    movieListViewModel.searchMovies(query)
+                    homeViewModel.updateSearchQuery(query)
+                    homeViewModel.searchMovies(query)
                 }
             },
             onSearch = { value ->
-                movieListViewModel.updateSearchQuery(value)
-                movieListViewModel.searchMovies(value)
+                homeViewModel.updateSearchQuery(value)
+                homeViewModel.searchMovies(value)
             },
             onOpenSearch = { value ->
                 onSearchSubmit(value)
@@ -310,12 +309,12 @@ fun MakeProfileIcon(drawableVector: ImageVector, modifier: Modifier) {
 
 @Composable
 fun GridMovieContent(
-    movieListViewModel: MovieListViewModel,
+    homeViewModel: HomeScreenViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
     modifier: Modifier = Modifier,
     onMovieClick: (Long) -> Unit
 ) {
-    val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
     Column(modifier = modifier) {
         LazyVerticalGrid(
             modifier = Modifier.height(600.dp),
@@ -350,12 +349,12 @@ fun GridMovieContent(
 
 @Composable
 fun RowingMoviesContent(
-    movieListViewModel: MovieListViewModel,
+    homeViewModel: HomeScreenViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
     mod: Modifier = Modifier,
     onMovieClick: (Long) -> Unit
 ) {
-    val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = mod

@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.csd3156.mobileproject.MovieReviewApp.common.Resource
 import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
@@ -15,11 +17,14 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.LocalReviewRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 data class MovieListUiState(
     val moviesPopular: List<Movie> = emptyList(),
@@ -39,188 +44,26 @@ data class MovieListUiState(
 
 )
 
-class MovieListViewModel(
+@HiltViewModel
+class MovieListViewModel @Inject constructor(
+    private val accountRepo : AccountRepository,
     private val repository: MovieRepository,
     private val localReviewRepository: LocalReviewRepository
 ) : ViewModel() {
 
+     val currentAccount : Flow<AccountDomain?> = accountRepo.getActiveAccountRoom()
     private val _uiState = MutableStateFlow(MovieListUiState(isLoading = true))
     val uiState: StateFlow<MovieListUiState> = _uiState.asStateFlow()
     private var localReviewsJob: Job? = null
 
     init {
-        refresh()
+
         loadGenres()
-        // Explore lane uses a high-confidence top-rated discover query.
-        discoverMovies(
-            sortBy = "vote_average.desc",
-            voteCountGte = 500,
-            includeAdult = false
-        )
     }
 
-    fun refresh() {
-        viewModelScope.launch {
-            repository.getPopularMovies().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
 
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesPopular = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
 
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
 
-        viewModelScope.launch {
-            repository.getTrendingMovies().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
-
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesTrending = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
-    }
-
-    fun clearSearchMovie(){
-        _uiState.value = _uiState.value.copy(
-            searchQuery = "",
-            moviesSearchResults = emptyList(),
-            errorMessage = null
-        )
-    }
-
-    fun updateSearchQuery(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
-    }
-
-    fun searchMovies(query: String, page: Int = 1, includeAdult: Boolean = false) {
-        if (query.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                searchQuery = "",
-                moviesSearchResults = emptyList(),
-                errorMessage = null
-            )
-            return
-        }
-        _uiState.value = _uiState.value.copy(searchQuery = query)
-        viewModelScope.launch {
-            repository.searchMovies(query = query, page = page, includeAdult = includeAdult).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
-
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesSearchResults = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
-    }
-
-    fun loadMoviesByGenre(genreIds: List<Long>, page: Int = 1) {
-        viewModelScope.launch {
-            repository.getMoviesByGenre(genreIds = genreIds, page = page).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
-
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesByGenre = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
-    }
-
-    fun discoverMovies(
-        page: Int = 1,
-        sortBy: String? = null,
-        genreIds: List<Long>? = null,
-        releaseDateGte: String? = null,
-        releaseDateLte: String? = null,
-        voteAverageGte: Double? = null,
-        voteAverageLte: Double? = null,
-        voteCountGte: Int? = null,
-        runtimeGte: Int? = null,
-        runtimeLte: Int? = null,
-        includeAdult: Boolean = false
-    ) {
-        viewModelScope.launch {
-            repository.discoverMovies(
-                page = page,
-                sortBy = sortBy,
-                genreIds = genreIds,
-                releaseDateGte = releaseDateGte,
-                releaseDateLte = releaseDateLte,
-                voteAverageGte = voteAverageGte,
-                voteAverageLte = voteAverageLte,
-                voteCountGte = voteCountGte,
-                runtimeGte = runtimeGte,
-                runtimeLte = runtimeLte,
-                includeAdult = includeAdult
-            ).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
-
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesDiscovered = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
-    }
 
     fun loadGenres() {
         viewModelScope.launch {
@@ -357,17 +200,27 @@ class MovieListViewModel(
             localReviewRepository.addReview(movieId, author, rating, content, photoPath)
         }
     }
-
+    @Deprecated(
+        message = "Replace factory with hilt",
+        replaceWith = ReplaceWith("MovieListViewModel.provideFactory")
+    )
     companion object {
         fun provideFactory(context: Context): ViewModelProvider.Factory {
             val movieRepository = MovieRepositoryImpl.create()
             val localReviewRepository = LocalReviewRepositoryImpl.create(context)
-            return MovieListViewModelFactory(movieRepository, localReviewRepository)
+            val accountRepository = AccountRepository.create(
+                context
+            )
+            return MovieListViewModelFactory(accountRepository, movieRepository, localReviewRepository)
         }
     }
 }
-
+@Deprecated(
+    message = "Replace factory with hilt",
+    replaceWith = ReplaceWith("MovieListViewModel.provideFactory")
+)
 class MovieListViewModelFactory(
+    private val accountRepo: AccountRepository,
     private val repository: MovieRepository,
     private val localReviewRepository: LocalReviewRepository
 ) : ViewModelProvider.Factory {
@@ -376,6 +229,6 @@ class MovieListViewModelFactory(
             "Unknown ViewModel class: $modelClass"
         }
         @Suppress("UNCHECKED_CAST")
-        return MovieListViewModel(repository, localReviewRepository) as T
+        return MovieListViewModel(accountRepo,repository, localReviewRepository) as T
     }
 }

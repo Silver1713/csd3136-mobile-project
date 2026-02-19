@@ -28,10 +28,10 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun loginAccount(id: Int){
+    fun loginAccount(uid: String){
         viewModelScope.launch {
             _uiState.update {
-                it.copy(accountID = id)
+                it.copy(accountID = uid)
             }
             setLoggedIn(true)
         }
@@ -43,5 +43,5 @@ class AppViewModel : ViewModel() {
 
 data class AppUIState (
     val isLoggedIn : Boolean = false,
-    val accountID: Int = 0,
+    val accountID: String = "",
 )

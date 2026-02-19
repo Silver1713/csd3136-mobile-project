@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
@@ -38,6 +39,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Account
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -70,8 +73,15 @@ private enum class AuthMode {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun accountScreen(accountVM : AccountViewModel, modifier: Modifier, onNavigate : (Account) -> Unit){
+fun accountScreen(accountVM : AccountViewModel, modifier: Modifier, onNavigate : (AccountDomain) -> Unit){
     var mode by rememberSaveable { mutableStateOf(AuthMode.LOGIN) }
+
+    val activeUser : AccountDomain? by accountVM.activeUser.collectAsState(initial = null)
+
+    if (activeUser != null){
+        onNavigate(activeUser!!)
+        return
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -196,7 +206,7 @@ private fun AuthHeader() {
 }
 
 @Composable
-private fun LoginForm(accountVM: AccountViewModel,onSubmit: (account : Account) -> Unit) {
+private fun LoginForm(accountVM: AccountViewModel,onSubmit: (account : AccountDomain) -> Unit) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showPassword by rememberSaveable { mutableStateOf(false) }
@@ -274,7 +284,8 @@ private fun LoginForm(accountVM: AccountViewModel,onSubmit: (account : Account) 
 }
 
 @Composable
-private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: Account) -> Unit) {
+private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: AccountDomain) -> Unit) {
+    var email by rememberSaveable() {mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
     var username by rememberSaveable { mutableStateOf("") }
     var bio by rememberSaveable { mutableStateOf("") }
@@ -284,6 +295,7 @@ private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: Accoun
     var showConfirmPassword by rememberSaveable { mutableStateOf(false) }
     var submitAttempted by rememberSaveable { mutableStateOf(false) }
 
+    val emailError = if (submitAttempted && email.isBlank()) "Email is required" else null
     val nameError = if (submitAttempted && name.isBlank()) "Display name is required" else null
     val usernameError = if (submitAttempted && username.isBlank()) "Username is required" else null
     val passwordError = if (submitAttempted && password.isBlank()) "Password is required" else null
@@ -314,6 +326,7 @@ private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: Accoun
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
+
         AuthTextField(
             value = name,
             onValueChange = { name = it },
@@ -324,6 +337,17 @@ private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: Accoun
                 imeAction = ImeAction.Next
             ),
             errorMessage = nameError
+        )
+        AuthTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = "Email",
+            leadingIcon = Icons.Filled.Email,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next
+            ),
+            errorMessage = emailError
         )
         AuthTextField(
             value = username,
@@ -358,7 +382,7 @@ private fun RegisterForm(accountVM: AccountViewModel, onSubmit: (account: Accoun
             onClick = {
                 submitAttempted = true
                 if (nameError == null && usernameError == null && passwordError == null && confirmPasswordError == null) {
-                    accountVM.register(username, password, name, bio)
+                    accountVM.register(email,username, password, name, bio)
                 }
             },
             enabled = !uiState.isRegisterLoading,

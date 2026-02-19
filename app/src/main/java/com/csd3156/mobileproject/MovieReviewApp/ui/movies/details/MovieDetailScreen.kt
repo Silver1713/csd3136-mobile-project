@@ -56,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +84,7 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
+import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
@@ -95,6 +97,7 @@ import kotlin.math.roundToInt
 @Composable
 fun MovieDetailScreen(
     movie: MovieDetails?,
+    movieVM: MovieListViewModel,
     reviews: List<MovieReview>,
     videos: List<MovieVideo>,
     watchProviders: List<WatchProvider>,
@@ -105,6 +108,7 @@ fun MovieDetailScreen(
     modifier: Modifier = Modifier
 ) {
     var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
+    val author by movieVM.currentAccount.collectAsState(null)
     var reviewerName by rememberSaveable { mutableStateOf("") }
     var reviewContent by rememberSaveable { mutableStateOf("") }
     var reviewRating by rememberSaveable { mutableStateOf(6f) }
@@ -232,7 +236,7 @@ fun MovieDetailScreen(
 
     if (shouldShowReviewDialog) {
         WriteReviewDialog(
-            name = reviewerName,
+            name = author?.username ?: reviewerName,
             onNameChange = { reviewerName = it },
             content = reviewContent,
             onContentChange = { reviewContent = it },
@@ -490,7 +494,8 @@ private fun WriteReviewDialog(
                     onValueChange = onNameChange,
                     label = { Text("Display name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    readOnly = true
                 )
                 OutlinedTextField(
                     value = content,

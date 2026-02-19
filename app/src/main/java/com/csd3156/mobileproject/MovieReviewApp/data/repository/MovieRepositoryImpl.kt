@@ -5,6 +5,7 @@ import com.csd3156.mobileproject.MovieReviewApp.common.Resource
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.TmdbApiService
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.MovieDto
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.toDomain
+import com.csd3156.mobileproject.MovieReviewApp.di.IoDispatcher
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
@@ -14,6 +15,7 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -26,9 +28,9 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 // A repository implementation that builds on Retrofit/OkHttp/Moshi with the bearer token (from BuildConfig.TMDB_API_TOKEN)
-class MovieRepositoryImpl(
+class MovieRepositoryImpl @Inject constructor(
     private val apiService: TmdbApiService,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+   @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : MovieRepository {
 
     override fun getPopularMovies(page: Int): Flow<Resource<List<Movie>>> = flow {
@@ -254,7 +256,7 @@ class MovieRepositoryImpl(
                 .build()
 
             val service = retrofit.create(TmdbApiService::class.java)
-            return MovieRepositoryImpl(service)
+            return MovieRepositoryImpl(service, Dispatchers.IO)
         }
     }
 }
