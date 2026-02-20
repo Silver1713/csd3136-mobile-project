@@ -13,4 +13,9 @@ interface ReviewDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(review: ReviewEntity)
+
+
+    @Query("DELETE FROM movie_reviews WHERE movieId = :movieId")
+    suspend fun deleteMovieReviews(movieId: Long)
+
 }

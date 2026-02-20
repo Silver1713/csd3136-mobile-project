@@ -22,7 +22,7 @@ data class AccountDomain(
             id = 0,
             uid = uid,
             username = username,
-            name = name,
+            name = username,
             email = email,
             profileUrl = profileUrl,
             bio = bio,

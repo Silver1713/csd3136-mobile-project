@@ -8,6 +8,7 @@ import com.csd3156.mobileproject.MovieReviewApp.common.Resource
 import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.ReviewRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
@@ -48,7 +49,8 @@ data class MovieListUiState(
 class MovieListViewModel @Inject constructor(
     private val accountRepo : AccountRepository,
     private val repository: MovieRepository,
-    private val localReviewRepository: LocalReviewRepository
+    private val localReviewRepository: LocalReviewRepository,
+    private val reviewRepository: ReviewRepository
 ) : ViewModel() {
 
      val currentAccount : Flow<AccountDomain?> = accountRepo.getActiveAccountRoom()
@@ -116,16 +118,25 @@ class MovieListViewModel @Inject constructor(
     fun loadMovieReviews(movieId: Long, page: Int = 1) {
         viewModelScope.launch {
             repository.getMovieReviews(movieId = movieId, page = page).collect { resource ->
+
                 when (resource) {
                     is Resource.Loading -> _uiState.value =
                         _uiState.value.copy(isLoading = true, errorMessage = null)
 
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            selectedMovieReviews = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
+                    is Resource.Success -> {
+                        _uiState.value =
+
+                            _uiState.value.copy(
+                                selectedMovieReviews = resource.data,
+                                isLoading = false,
+                                errorMessage = null
+                            )
+
+                        reviewRepository.refreshMovieReviews(movieId)
+                    }
+
+
+
 
                     is Resource.Error -> _uiState.value =
                         _uiState.value.copy(
@@ -188,7 +199,7 @@ class MovieListViewModel @Inject constructor(
     fun observeLocalReviews(movieId: Long) {
         localReviewsJob?.cancel()
         localReviewsJob = viewModelScope.launch {
-            localReviewRepository.getReviewsForMovie(movieId).collect { reviews ->
+            reviewRepository.getCachedReviews(movieId).collect { reviews ->
                 _uiState.value = _uiState.value.copy(selectedMovieLocalReviews = reviews)
             }
         }
@@ -197,38 +208,7 @@ class MovieListViewModel @Inject constructor(
     fun addLocalReview(movieId: Long, author: String, rating: Double?, content: String, photoPath: String?) {
         if (content.isBlank()) return
         viewModelScope.launch {
-            localReviewRepository.addReview(movieId, author, rating, content, photoPath)
+            reviewRepository.addReview(movieId, rating, content, photoPath)
         }
-    }
-    @Deprecated(
-        message = "Replace factory with hilt",
-        replaceWith = ReplaceWith("MovieListViewModel.provideFactory")
-    )
-    companion object {
-        fun provideFactory(context: Context): ViewModelProvider.Factory {
-            val movieRepository = MovieRepositoryImpl.create()
-            val localReviewRepository = LocalReviewRepositoryImpl.create(context)
-            val accountRepository = AccountRepository.create(
-                context
-            )
-            return MovieListViewModelFactory(accountRepository, movieRepository, localReviewRepository)
-        }
-    }
-}
-@Deprecated(
-    message = "Replace factory with hilt",
-    replaceWith = ReplaceWith("MovieListViewModel.provideFactory")
-)
-class MovieListViewModelFactory(
-    private val accountRepo: AccountRepository,
-    private val repository: MovieRepository,
-    private val localReviewRepository: LocalReviewRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        require(modelClass.isAssignableFrom(MovieListViewModel::class.java)) {
-            "Unknown ViewModel class: $modelClass"
-        }
-        @Suppress("UNCHECKED_CAST")
-        return MovieListViewModel(accountRepo,repository, localReviewRepository) as T
     }
 }

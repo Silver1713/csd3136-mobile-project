@@ -37,7 +37,9 @@ class LocalReviewRepositoryImpl @Inject constructor(
             content = content.trim(),
             rating = rating,
             createdAtMillis = System.currentTimeMillis(),
-            photoPath = photoPath
+            photoPath = photoPath,
+            id = 0,
+
         )
         withContext(ioDispatcher) {
             reviewDao.insert(entity)

@@ -13,7 +13,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Convertors.U
 
 @Database(
     entities = [Account::class, ReviewEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(

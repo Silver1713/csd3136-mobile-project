@@ -11,7 +11,6 @@ import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryI
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
-import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModelFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -137,7 +137,7 @@ class AccountViewModel @Inject constructor(
 
 
             val result: RequestResult<String?> =
-                repository.registerAccount(email, normalizedUsername, password)
+                repository.registerAccount(email, normalizedUsername, password, name)
             when (result) {
                 is RequestResult.Success -> {
                     val uid = result.data

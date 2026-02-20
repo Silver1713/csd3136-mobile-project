@@ -21,6 +21,26 @@ class ReviewFirestoreService @Inject constructor(
             .collection(reviewCollection)
 
 
+
+    suspend fun getReviews(movieId: Int) : RequestResult<List<ReviewFirebaseDto>> {
+        return try {
+            val reviewCollection = getReviewCollection(movieId)
+            val snapshot = reviewCollection
+                .get()
+                .await()
+            val reviews = snapshot.documents.mapNotNull {
+                it.toObject(ReviewFirebaseDto::class.java)
+                    ?.copy(id = it.id)
+            }
+            RequestResult.Success(null, reviews)
+        } catch (e: Exception){
+            return RequestResult.Error(e.message, e)
+
+
+        }
+    }
+
+
     suspend fun getReview(movieId: Int, reviewId: String) : RequestResult<ReviewFirebaseDto?> {
         return try {
             val reviewCollection = getReviewCollection(movieId)

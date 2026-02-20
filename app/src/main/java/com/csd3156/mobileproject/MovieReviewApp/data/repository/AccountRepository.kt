@@ -80,7 +80,7 @@ class AccountRepository @Inject constructor(
 
 
 
-    suspend fun registerAccount(email: String?, username: String, password: String): RequestResult<String?> {
+    suspend fun registerAccount(email: String?, username: String, password: String, name: String? = null): RequestResult<String?> {
         try {
             // Clear Local Cache
 
@@ -98,7 +98,7 @@ class AccountRepository @Inject constructor(
                 uid = uid,
                 email = email ?: "${username}@moviereviewapp.default",
                 username = username,
-                name = null,
+                name = name,
                 bio = null,
                 profileUrl = null,
             )
