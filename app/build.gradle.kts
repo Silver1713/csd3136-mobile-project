@@ -104,6 +104,8 @@ dependencies {
     implementation(libs.firebase.storage)
 
 
+    implementation("com.github.haifengl:smile-core:5.0.0")
+
 
 
 
