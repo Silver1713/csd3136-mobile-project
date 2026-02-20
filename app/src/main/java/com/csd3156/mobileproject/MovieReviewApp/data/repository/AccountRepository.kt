@@ -76,6 +76,12 @@ class AccountRepository @Inject constructor(
     }
 
 
+    suspend fun logoutAccount(){
+        accountDao.deleteAll()
+        firebaseAuthService.signOut()
+    }
+
+
 
 
 

@@ -39,13 +39,15 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.search.BrowseScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.theme.MovieReviewAppTheme
 import kotlinx.serialization.Serializable
 
-import com.csd3156.mobileproject.MovieReviewApp.ui.main.Profile
-import com.csd3156.mobileproject.MovieReviewApp.ui.main.ProfileScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.profile.Profile
+import com.csd3156.mobileproject.MovieReviewApp.ui.profile.ProfileScreen
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.csd3156.mobileproject.MovieReviewApp.ui.AppViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.login.AccountScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.login.AccountViewModel
@@ -96,6 +98,7 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
     val movieVM : MovieListViewModel = hiltViewModel()
     val accountVM : AccountViewModel = hiltViewModel()
     val searchQuery : MutableState<String?> = rememberSaveable { mutableStateOf(null) }
+    val accountSelected by accountVM.activeUser.collectAsStateWithLifecycle(null)
 
     NavHost(navController = controller, startDestination = startDestination) {
         composable <AccountScreen>{
@@ -157,9 +160,27 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
         }
 
         composable<Profile> {
+            LaunchedEffect(
+                key1 = accountSelected
+            ) {
+                if (accountSelected == null) {
+                    controller.navigate(
+                        AccountScreen
+                    ){
+                        popUpTo(controller.graph.id)
+                        { inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            }
             ProfileScreen(
                 modifier = modifier,
-                onMyWatchlist = { controller.navigate(Watchlist)}
+                onMyWatchlist = { controller.navigate(Watchlist)},
+                onLogout = {
+                    accountVM.logout()
+                    rootVM.setLoggedIn(false)
+                }
             )
         }
 
@@ -229,7 +250,6 @@ fun BottomBar(navController: NavHostController) {
     val items = listOf(
         NavItem("Home", Main, Icons.Default.Home),
         NavItem("Search", SearchScreen, Icons.Default.Search),
-        NavItem("Example2", P2, Icons.Default.Home),
         NavItem("Profile", Profile, Icons.Default.AccountCircle)
     )
 
@@ -248,7 +268,7 @@ fun BottomBar(navController: NavHostController) {
                 selected = selected,
                 onClick = {
                     navController.navigate(item.route) {
-                        popUpTo(Main) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }

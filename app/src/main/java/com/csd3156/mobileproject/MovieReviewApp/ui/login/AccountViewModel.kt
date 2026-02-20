@@ -182,6 +182,20 @@ class AccountViewModel @Inject constructor(
         return hasUpper && hasLower && hasDigit && hasSymbol
     }
 
+     fun logout (){
+         viewModelScope.launch {
+             repository.logoutAccount()
+             _uiState.update {
+                 it.copy(
+                     accountSelected = null,
+                     isLoginLoading = false,
+                     loginErrorMessage = null
+                 )
+             }
+         }
+
+    }
+
 
 }
 
