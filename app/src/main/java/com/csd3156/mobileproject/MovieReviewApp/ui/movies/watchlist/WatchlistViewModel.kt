@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class WatchlistViewModel(
+@HiltViewModel
+class WatchlistViewModel @Inject constructor(
     private val repo: WatchlistRepository
 ) : ViewModel() {
 

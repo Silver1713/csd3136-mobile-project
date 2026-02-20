@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.ReviewDao
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.AccountDAO
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,6 +35,9 @@ object DatabaseModule {
         return database.reviewDao()
     }
 
-
-
+    @Provides
+    fun provideWatchlistDao(database: MovieReviewDatabase): WatchlistDao {
+        return database.watchlistDao()
+    }
 }
+

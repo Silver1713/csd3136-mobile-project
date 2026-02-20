@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.MovieCard
@@ -31,9 +32,7 @@ fun WatchlistScreen(
     onMovieClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val db = remember { MovieReviewDatabase.getInstance(context) }
-    val vm = remember { WatchlistViewModel(WatchlistRepository(db.watchlistDao())) }
+    val vm : WatchlistViewModel = hiltViewModel()
 
     val watchlist = vm.watchlist.collectAsState(initial = emptyList()).value
 

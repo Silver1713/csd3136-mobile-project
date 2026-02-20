@@ -1,8 +1,9 @@
 package com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist
 
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
+import jakarta.inject.Inject
 
-class WatchlistRepository(
+class WatchlistRepository @Inject constructor(
     private val dao: WatchlistDao
 ) {
     suspend fun addToWatchlist(movie: Movie) {
