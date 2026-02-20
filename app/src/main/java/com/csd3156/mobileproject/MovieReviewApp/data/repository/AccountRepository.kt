@@ -1,7 +1,6 @@
 package com.csd3156.mobileproject.MovieReviewApp.data.repository
 
 import android.content.Context
-import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Account
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.AccountDAO
@@ -14,7 +13,6 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -100,7 +98,7 @@ class AccountRepository @Inject constructor(
                 accountFirestoreService
             }
 
-            val createRequestAccount: CreateAccountDto = CreateAccountDto(
+            val createRequestAccount = CreateAccountDto(
                 uid = uid,
                 email = email ?: "${username}@moviereviewapp.default",
                 username = username,
