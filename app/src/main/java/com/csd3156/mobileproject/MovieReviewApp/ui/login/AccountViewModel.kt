@@ -2,7 +2,6 @@ package com.csd3156.mobileproject.MovieReviewApp.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Account
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
