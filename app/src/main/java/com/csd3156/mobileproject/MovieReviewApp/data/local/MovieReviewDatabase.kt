@@ -10,10 +10,12 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Acco
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.AccountDAO
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Convertors.DateConvertor
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Convertors.UUIDConvertor
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistMovie
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistDao
 
 @Database(
-    entities = [Account::class, ReviewEntity::class],
-    version = 5,
+    entities = [Account::class, ReviewEntity::class,WatchlistMovie::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(
@@ -23,6 +25,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Convertors.U
 abstract class MovieReviewDatabase : RoomDatabase() {
     abstract fun accountDao() : AccountDAO
     abstract fun reviewDao(): ReviewDao
+    abstract fun watchlistDao(): WatchlistDao
 
     @Deprecated(
         message = "Use Hilt instead",

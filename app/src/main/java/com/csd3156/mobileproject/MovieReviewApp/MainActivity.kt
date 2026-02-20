@@ -52,6 +52,8 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.login.AccountViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.login.accountScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.search.browseMovieViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.Watchlist
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistScreen
 
 
 
@@ -155,8 +157,22 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
         }
 
         composable<Profile> {
-            ProfileScreen(modifier = modifier)
+            ProfileScreen(
+                modifier = modifier,
+                onMyWatchlist = { controller.navigate(Watchlist)}
+            )
         }
+
+        composable<Watchlist> {
+            WatchlistScreen(
+                onBack = { controller.popBackStack() },
+                onMovieClick = { movieId ->
+                    controller.navigate(MovieDetailsDestination(movieId))
+                }
+            )
+        }
+
+
     }
 }
 
