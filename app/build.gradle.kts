@@ -13,12 +13,7 @@ android {
     compileSdk {
         version = release(36)
     }
-    packaging {
-        resources {
-            // This picks the first file for the duplicate, to prevent clashing.
-            pickFirsts.add("META-INF/native-image/**")
-        }
-    }
+
     defaultConfig {
         applicationId = "com.csd3156.mobileproject.MovieReviewApp"
         minSdk = 24
@@ -46,13 +41,13 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlin {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
 
@@ -77,16 +72,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.glance.preview)
-
-    //Machine Learning Libraries for Recommender System: Smile for training, Londoguard for vectorization of sentences
-    implementation("com.github.haifengl:smile-kotlin:4.4.2")
-    implementation("com.londogard:nlp:1.1.1")
-    implementation("org.jetbrains.kotlinx:multik-core:0.2.2")
-    implementation("org.jetbrains.kotlinx:multik-default:0.2.2")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-    implementation("com.google.code.gson:gson:2.10.1")
-
-    // implementation(libs.androidx.room.compiler)
+   // implementation(libs.androidx.room.compiler)
    // implementation(libs.androidx.androidx.room.gradle.plugin)
     implementation ("androidx.compose.material:material-icons-extended")
 
@@ -103,6 +89,13 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+
+    implementation("com.github.haifengl:smile-core:5.0.0")
+
+
+
+
 }
 
 dependencies {

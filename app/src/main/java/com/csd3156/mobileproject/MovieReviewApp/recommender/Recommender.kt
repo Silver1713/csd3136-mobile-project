@@ -1,40 +1,16 @@
-
 package com.csd3156.mobileproject.MovieReviewApp.recommender
-import android.R.attr.type
-import android.content.Context
-import android.text.TextUtils.split
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-
-import com.londogard.nlp.embeddings.EmbeddingLoader
-import com.londogard.nlp.embeddings.sentence.AverageSentenceEmbeddings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
-//Sentence Embedding --> Sentence to Vector
-import com.londogard.nlp.embeddings.sentence.*
-import com.londogard.nlp.embeddings.*
-import com.londogard.nlp.utils.LanguageSupport.*
-import com.londogard.nlp.embeddings.sentence.USifSentenceEmbeddings
-import com.londogard.nlp.meachinelearning.vectorizer.count.CountVectorizer
-import com.londogard.nlp.utils.LanguageSupport
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import org.jetbrains.kotlinx.multik.ndarray.data.NDArray
-import smile.nlp.*;
-import smile.util.SparseArray
-
-val Context.dataStore by preferencesDataStore(name = "vectorizer_map_storage")
+import smile.data.DataFrame
+import smile.data.formula.Formula
+import smile.io.Read
+import smile.regression.OLS
 /*
 Recommends a list of movies similar to what the user has watched.
 Content-based filtering (since TMDB doesn't allow to see what users watched what movies, so it's harder to integrate collaborative. Also idk how).
  */
-class Recommender (context: Context){
+class Recommender{
     /*
         Note: Use Dispatchers.Default when executing coroutines for training, as it splits workload among
         background threads
@@ -91,26 +67,17 @@ class Recommender (context: Context){
         Higher list lengths mean a longer training time and higher ram usage, with possible crashes due to ram usage.
      */
     suspend fun TrainModel(movies : List<MovieDetails>) {
-        //Fit count vectorizer, so it generates a fixed-size vector for any category string later.
-        var categoryStrings = mutableListOf<List<String>>();
-        for(movie in movies)
-        {
-            categoryStrings.add(GetPreProcessedCategoryWords(movie))
-        }
-        val countVectorizer = CountVectorizer<Float>();
-        countVectorizer.fit(categoryStrings);
-        CountVectorizerMapStore.saveMap(appContext, countVectorizer.vectorization);
         /*
             Note: Make each matrix separately (clear mem after storing in local database) to reduce memory usage.
-            Use smile.SparseArray, SparseMatrix to save space.
          */
+
+
     }
 
     /*
         Brief: Returns a list of movie ids as recommendations, based on the user's watchlist of movies.
         Must train the model before calling this.
         A higher number of movies in the watchlist will give more accurate results.
-        Note: If one movie is passed in, then recommendations will be based on that specific movie.
      */
     suspend fun GetRecommendations(userWatchlist : List<MovieDetails>, numRecommendations : Int) : Flow<Int> {
         return emptyFlow()
@@ -118,24 +85,13 @@ class Recommender (context: Context){
 
     /*
         Brief: Helper to compute a list of vectors based on movie features.
-        Vector 1: Overview + Tagline using wordembedding or TF-IDF
-        Vector 2: Genres, Original Language, Adult, Release Decade(one-hot-encoded)
     */
-    private suspend fun ComputeVectors(movieDetails : MovieDetails) : List<SparseArray> {
-        //Return vectors.
-        var vectorList = mutableListOf<Array<Float>>();
-
-        /*  Pre-process data */
-        val overviewTagWords = GetPreProcessedOverviewTagWords(movieDetails);
-        val categoryWords = GetPreProcessedCategoryWords(movieDetails);
-
+    private suspend fun ComputeVectors(movieDetails : MovieDetails) : List<Array<Float>> {
         /*
             Vector 1: Overview + Tagline using wordembedding or TF-IDF
             - Use pre-trained word embedders that are suitable for short paragraphs like SBERT/FastText.
             - May need to reduce number of features, but if so ensure the vector structure is kept the same for user watchlist.
          */
-        //Using Londoguard sentence embedding to form a vector from the paragraph.
-        val overviewTagVector = sentenceEmbedder.getSentenceEmbedding(overviewTagWords);
 
         /*
             Vector 2: Genres, Original Language, Adult, Release Decade(one-hot-encoded)
@@ -144,96 +100,10 @@ class Recommender (context: Context){
             Run .fit() on the entire dataset of 10000? first to capture all potential categories.
             Afterwards just keep and reuse the vectorizer for all training and usage purposes, to ensure vector structure is the same.
          */
-        //Using trained count vectorizer
-        val countVectorizer = CountVectorizer<Float>();
-        countVectorizer.vectorization = CountVectorizerMapStore.getMap(appContext);
-        val categoryVector = countVectorizer.transform(listOf<List<String>>(categoryWords)).data.toList();
 
-        return listOf(SparseArray(overviewTagVector), SparseArray(categoryVector));
+
+        return emptyList()
     }
-
-    //Concatenates and cleans up (lowercase, remove unnecessary space etc) a string of important categorical information
-    //Returns an array of words
-    //Used: Overview, Tagline following weight 1:X specified in class variables.
-    private suspend fun GetPreProcessedOverviewTagWords(movieDetails: MovieDetails) : List<String>
-    {
-        //Basic concatenation and cleaning
-        val overviewTaglineTags = mutableListOf<String>();
-        overviewTaglineTags.add(movieDetails.overview);
-        repeat(taglineRepeat) {overviewTaglineTags.add(movieDetails.tagline);}
-        val overviewTagString = overviewTaglineTags.joinToString(" ").lowercase();
-
-        //Using smile to split into sentences, then words. Exclude common stop-words like "the"
-        val overviewTagNormalizedSentences = overviewTagString.normalize().sentences();
-        //Filter stop-words by adjusting filter strength here.
-        return overviewTagNormalizedSentences.flatMap{it.words(filter = "default").asIterable()};
-    }
-
-    //Concatenates and cleans up (lowercase, remove unnecessary space) a string of important categorical information
-    //Used: Genres, Original Language, Adult, Release Decade(one-hot-encoded), following the weights 1:X:Y:Z specified in class variables.
-    private suspend fun GetPreProcessedCategoryWords(movieDetails : MovieDetails) : List<String>
-    {
-        //Basic concatenation and cleaning
-        //2026-01-02, take the decade
-        val year = movieDetails.releaseDate.split("-")[0].toInt()
-        //Code it into a string so it doesn't clash with any numbers that may be in other categories.
-        val decadeString = when (year) {
-            in 0..1929 -> "silentera"
-            in 1930..1949 -> "goldenage"
-            in 1950..1969 -> "newhollywood"
-            in 1970..1989 -> "blockbusterera"
-            in 1990..2009 -> "modernera"
-            in 2010..2029 -> "digitalera"
-            else -> "futureera"
-        }
-        val adultString = if(movieDetails.adult) "adulttag" else "";
-        val allTags = mutableListOf<String>();
-        for(genre in movieDetails.genres)
-        {
-            allTags.add(genre.name.replace(" ", "").lowercase());
-        }
-        repeat(decadeRepeat) { allTags.add(decadeString.lowercase()) }
-        repeat(adultRepeat) { if (adultString.isNotEmpty()) allTags.add(adultString.lowercase()) }
-        repeat(languageRepeat) { allTags.add(movieDetails.originalLanguage.replace(" ", "").lowercase()) }
-
-        return allTags;
-    }
-
     //Private local_database_instance
     //Private datastore/file count_vectorizer (store in mem so the .fit() can be kept, reset when train model is reran)
-
-
-    class CountVectorizerMapStore{
-        companion object
-        {
-            suspend fun saveMap(context: Context, map: Map<String, Int>) {
-                context.dataStore.edit { prefs ->
-                    map.forEach { (key, value) ->
-                        prefs[intPreferencesKey(key)] = value
-                    }
-                }
-            }
-
-            suspend fun getMap(context: Context): Map<String, Int> {
-                return context.dataStore.data.first().asMap().mapKeys {
-                    it.key.name
-                }.filterValues { it is Int } as Map<String, Int>
-            }
-        }
-    }
-    private val appContext = context.applicationContext
-
-    companion object{
-        //Weightage modifiers for vectorization of movie
-        public var taglineRepeat = 2;
-        public var decadeRepeat = 1;
-        public var adultRepeat = 3;
-        public var languageRepeat = 2;
-
-        //Sentence Embedder for vectorization of movie summary paragraph
-        private val sentenceEmbedder = AverageSentenceEmbeddings(EmbeddingLoader.fromLanguageOrNull<BpeEmbeddings>(en)!!)
-    }
-
-
 }
-
