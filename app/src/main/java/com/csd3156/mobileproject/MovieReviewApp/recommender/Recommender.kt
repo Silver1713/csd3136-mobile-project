@@ -1,21 +1,33 @@
 package com.csd3156.mobileproject.MovieReviewApp.recommender
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
-import smile.data.DataFrame
-import smile.data.formula.Formula
-import smile.io.Read
-import smile.regression.OLS
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.first
+import java.util.SortedMap
+//Datastore for count vectorization
+val Context.dataStore by preferencesDataStore(name = "recommenderCategoryCount")
 /*
 Recommends a list of movies similar to what the user has watched.
 Content-based filtering (since TMDB doesn't allow to see what users watched what movies, so it's harder to integrate collaborative. Also idk how).
  */
-class Recommender{
+class Recommender (context : Context){
+
     /*
         Note: Use Dispatchers.Default when executing coroutines for training, as it splits workload among
         background threads
      */
 
+    /* Errors in Implementation, don't use.
+    - Londogard cannot build, as function name conflicts with android rules
+    - Smile cannot run due to regex error when init
+     */
 
     /* Implementation
     Use MovieDetails class as the data features.
@@ -34,17 +46,17 @@ class Recommender{
     Theory: Vectorize important movie features, and put each vector into a matrix.
     1. Get the list of the top 10000 (?) movies based on weighted rating. This is the training dataset.
     2. Vectorize each movie's features into multiple vectors
-    Vector 1 --> Combine Overview, Tagline into a single string before passing through a word embedder or TF-IDF to get the vector.
-    - Use pre-trained word embedders that are suitable for short paragraphs like SBERT/FastText.
+    Vector 1 --> Combine Overview, Tagline into a single string before passing through a sentence embedder (pre-trained model from Google's Tensorflow Lite
+    --> Multiply Tagline by a higher weight to prevent it from being drowned out by the higher overview length.
     Vector 2 --> Genres, Original Language, Adult, Release Decade(one-hot-encoded)
     - Clean categorical features like "Sci Fi" to "scifi" to remove unnecessary spaces and make the term be treated the same.
     - Can multiply language and adult feature by a higher weight in the vector created
-    - Vectorize Genres (multi-hot encoding), Original Language (one-hot encoding), Adult (with weightage), Release Decade(one-hot encoding)
-    --> It's easier to combine them all into a single string (separated by spaces) and use count-vectorize. repeat words to give higher weights.
     --> Since adult and original language is a big deal, repeat many times.
-    Normalize each vector type separately.
-    3. Store each vector type in independent matrixes
-    4. Store the matrixes in a local database or such together with other items like id, rating, popularity, vote count.
+    - Vectorize Genres (multi-hot encoding), Original Language (one-hot encoding), Adult (with weightage), Release Decade(one-hot encoding)
+    --> Have to find all possible unique categorical words for all categories, so make a dict<String, Int>. Set every unique string to 0 before storing.
+    When reading the map, it can be copied; for each categoryString, increment respective words in the dictionary (only if there)
+    Finally, sort dictionary and read each value before setting it in the vector.
+    Note: New words should be ignored.
 
     Usage Steps (done in a coroutine ran by dispatcher.default to not hang the thread):
     1. Take all user movies and form vectors based on the Training Steps or use existing vectors in the matrix if id is present.
@@ -70,7 +82,6 @@ class Recommender{
         /*
             Note: Make each matrix separately (clear mem after storing in local database) to reduce memory usage.
          */
-
 
     }
 
@@ -104,6 +115,80 @@ class Recommender{
 
         return emptyList()
     }
+
+    //Concatenates Overview, Tagline.
+    //Returns a string
+    //Used: Overview, Tagline following weight 1:X specified in class variables.
+    private suspend fun GetPreProcessedOverviewTagWords(movieDetails: MovieDetails) : String
+    {
+        //Basic concatenation
+        val overviewTaglineTags = mutableListOf<String>();
+        overviewTaglineTags.add(movieDetails.overview);
+        repeat(taglineRepeat) {overviewTaglineTags.add(movieDetails.tagline);}
+        return overviewTaglineTags.joinToString(" ").lowercase();
+    }
+
+    //Returns a list of important categorical information
+    //Used: Genres, Original Language, Adult, Release Decade(one-hot-encoded), following the weights 1:X:Y:Z specified in class variables.
+    private suspend fun GetPreProcessedCategoryWords(movieDetails : MovieDetails) : List<String>
+    {
+        //Basic concatenation
+        //2026-01-02, take the decade
+        val year = movieDetails.releaseDate.split("-")[0].toInt()
+        //Code it into a string so it doesn't clash with any numbers that may be in other categories.
+        val decadeString = when (year) {
+            in 0..1929 -> "silentera"
+            in 1930..1949 -> "goldenage"
+            in 1950..1969 -> "newhollywood"
+            in 1970..1989 -> "blockbusterera"
+            in 1990..2009 -> "modernera"
+            in 2010..2029 -> "digitalera"
+            else -> "futureera"
+        }
+        val adultString = if(movieDetails.adult) "adulttag" else "";
+        val allTags = mutableListOf<String>();
+        for(genre in movieDetails.genres)
+        {
+            allTags.add(genre.name.replace(" ", "").lowercase());
+        }
+        repeat(decadeRepeat) { allTags.add(decadeString.lowercase()) }
+        repeat(adultRepeat) { if (adultString.isNotEmpty()) allTags.add(adultString.lowercase()) }
+        repeat(languageRepeat) { allTags.add(movieDetails.originalLanguage.replace(" ", "").lowercase()) }
+        return allTags;
+    }
+
+    class CountVectorizerMapStore{
+        companion object
+        {
+            suspend fun saveMap(context: Context, map: Map<String, Int>) {
+                context.dataStore.edit { prefs ->
+                    map.forEach { (key, value) ->
+                        prefs[intPreferencesKey(key)] = value
+                    }
+                }
+            }
+
+            suspend fun getMap(context: Context): SortedMap<String, Int> {
+                return context.dataStore.data.first().asMap()
+                    .mapKeys { it.key.name }
+                    .filterValues { it is Int }
+                    .mapValues { it.value as Int }
+                    .toSortedMap() //
+            }
+        }
+    }
+    private val appContext = context.applicationContext
+    //Sentence Embedder for vectorization of movie summary paragraph
+    private val textEmbedder = TextEmbedder(appContext);
+    companion object{
+        //Weightage modifiers for vectorization of movie
+        public var taglineRepeat = 2;
+        public var decadeRepeat = 1;
+        public var adultRepeat = 3;
+        public var languageRepeat = 2;
+    }
+
     //Private local_database_instance
-    //Private datastore/file count_vectorizer (store in mem so the .fit() can be kept, reset when train model is reran)
+
+    //The text -> vector model.
 }

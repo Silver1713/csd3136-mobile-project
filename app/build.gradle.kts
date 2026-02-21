@@ -20,9 +20,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
         // Added this filed to expose TMDB bearer token via BuildConfig.TMDB_API_TOKEN
         buildConfigField(
             "String",
@@ -90,11 +91,11 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-
-    implementation("com.github.haifengl:smile-core:5.0.0")
-
-
-
+    //Text embedding and vectorization
+    //Note: The latest release had issues with emulator, so just use this version.
+    implementation("com.google.mediapipe:tasks-text:0.10.29")
+    //Datastore
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
 }
 
