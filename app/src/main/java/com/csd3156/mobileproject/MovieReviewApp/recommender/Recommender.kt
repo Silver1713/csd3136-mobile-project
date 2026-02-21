@@ -12,12 +12,11 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-
+import com.londogard.nlp.embeddings.EmbeddingLoader
+import com.londogard.nlp.embeddings.sentence.AverageSentenceEmbeddings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 //Sentence Embedding --> Sentence to Vector
-import com.londogard.nlp.embeddings.EmbeddingLoader
-import com.londogard.nlp.embeddings.sentence.AverageSentenceEmbeddings
 import com.londogard.nlp.embeddings.sentence.*
 import com.londogard.nlp.embeddings.*
 import com.londogard.nlp.utils.LanguageSupport.*
@@ -27,15 +26,8 @@ import com.londogard.nlp.utils.LanguageSupport
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.jetbrains.kotlinx.multik.ndarray.data.NDArray
-import org.jetbrains.kotlinx.multik.ndarray.operations.toFloatArray
-
-//Pre-processing text data for vectorization
 import smile.nlp.*;
-import android.util.SparseArray
-import org.jetbrains.kotlinx.multik.ndarray.data.D1
-import org.jetbrains.kotlinx.multik.ndarray.operations.toCollection
-import org.jetbrains.kotlinx.multik.ndarray.operations.toList
-
+import smile.util.SparseArray
 
 val Context.dataStore by preferencesDataStore(name = "vectorizer_map_storage")
 /*
@@ -129,7 +121,7 @@ class Recommender (context: Context){
         Vector 1: Overview + Tagline using wordembedding or TF-IDF
         Vector 2: Genres, Original Language, Adult, Release Decade(one-hot-encoded)
     */
-    private suspend fun ComputeVectors(movieDetails : MovieDetails) : List<List<Float>> {
+    private suspend fun ComputeVectors(movieDetails : MovieDetails) : List<SparseArray> {
         //Return vectors.
         var vectorList = mutableListOf<Array<Float>>();
 
@@ -139,9 +131,8 @@ class Recommender (context: Context){
 
         /*
             Vector 1: Overview + Tagline using wordembedding or TF-IDF
-            - Use pre-trained word embedders that are suitable for short paragraphs.
-            - Word embedding is used to account for the paragraph's context.
-            - //TODO: Ensure a fixed size vector is produced.
+            - Use pre-trained word embedders that are suitable for short paragraphs like SBERT/FastText.
+            - May need to reduce number of features, but if so ensure the vector structure is kept the same for user watchlist.
          */
         //Using Londoguard sentence embedding to form a vector from the paragraph.
         val overviewTagVector = sentenceEmbedder.getSentenceEmbedding(overviewTagWords);
@@ -149,17 +140,16 @@ class Recommender (context: Context){
         /*
             Vector 2: Genres, Original Language, Adult, Release Decade(one-hot-encoded)
             Using count-vectorize on a concatenated string (repeating feature words based on their weights)
-            This makes it easy to create a vector.
 
             Run .fit() on the entire dataset of 10000? first to capture all potential categories.
             Afterwards just keep and reuse the vectorizer for all training and usage purposes, to ensure vector structure is the same.
          */
-        //Using trained count vectorizer, applying it onto the
+        //Using trained count vectorizer
         val countVectorizer = CountVectorizer<Float>();
         countVectorizer.vectorization = CountVectorizerMapStore.getMap(appContext);
-        val categoryVector = countVectorizer.transform(listOf(categoryWords));
+        val categoryVector = countVectorizer.transform(listOf<List<String>>(categoryWords)).data.toList();
 
-        return listOf(overviewTagVector.toList(), categoryVector.toList());
+        return listOf(SparseArray(overviewTagVector), SparseArray(categoryVector));
     }
 
     //Concatenates and cleans up (lowercase, remove unnecessary space etc) a string of important categorical information
@@ -210,9 +200,9 @@ class Recommender (context: Context){
     }
 
     //Private local_database_instance
+    //Private datastore/file count_vectorizer (store in mem so the .fit() can be kept, reset when train model is reran)
 
-    //Stores fitted countVectorizer Map<String, Int> into a datastore.
-    private val appContext = context.applicationContext; //For use with datastore.
+
     class CountVectorizerMapStore{
         companion object
         {
@@ -231,6 +221,7 @@ class Recommender (context: Context){
             }
         }
     }
+    private val appContext = context.applicationContext
 
     companion object{
         //Weightage modifiers for vectorization of movie
