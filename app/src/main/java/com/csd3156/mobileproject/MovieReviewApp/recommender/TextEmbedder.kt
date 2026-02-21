@@ -13,7 +13,6 @@ class TextEmbedder (val context : Context) {
     private var textEmbedder : TextEmbedder;
     //Initializes the text embedding model.
     init{
-        //Why does this not run but example demo can?
         val baseOptionsBuilder = BaseOptions.builder()
         baseOptionsBuilder.setModelAssetPath("universal_sentence_encoder.tflite");
         val baseOptions = baseOptionsBuilder.build()

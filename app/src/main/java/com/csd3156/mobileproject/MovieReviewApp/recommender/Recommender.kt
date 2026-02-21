@@ -8,16 +8,24 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import java.util.SortedMap
+import javax.inject.Singleton
+
 //Datastore for count vectorization
 val Context.dataStore by preferencesDataStore(name = "recommenderCategoryCount")
 /*
 Recommends a list of movies similar to what the user has watched.
 Content-based filtering (since TMDB doesn't allow to see what users watched what movies, so it's harder to integrate collaborative. Also idk how).
+
+ Note:
+ - Call TrainModel before usage
+ - Should be placed in a view model so it lasts through recomposition etc.
+
  */
-class Recommender (context : Context){
+class Recommender private constructor(context : Context){
 
     /*
         Note: Use Dispatchers.Default when executing coroutines for training, as it splits workload among
@@ -83,6 +91,15 @@ class Recommender (context : Context){
             Note: Make each matrix separately (clear mem after storing in local database) to reduce memory usage.
          */
 
+        // Get and save all potential category unique words
+        SaveCategoryUniqueWords(movies);
+        for(movie in movies)
+        {
+            //TODO: Multithreading, where each thread takes multiple movies?
+            val overviewCategoryVectors = ComputeVectors(movie);
+        }
+
+
     }
 
     /*
@@ -100,20 +117,55 @@ class Recommender (context : Context){
     private suspend fun ComputeVectors(movieDetails : MovieDetails) : List<Array<Float>> {
         /*
             Vector 1: Overview + Tagline using wordembedding or TF-IDF
-            - Use pre-trained word embedders that are suitable for short paragraphs like SBERT/FastText.
+            - Use pre-trained sentence embedders that are suitable for short paragraphs.
             - May need to reduce number of features, but if so ensure the vector structure is kept the same for user watchlist.
          */
-
+        val overviewTagVector = textEmbedder.GetVectorFromText(GetPreProcessedOverviewTagWords(movieDetails));
         /*
             Vector 2: Genres, Original Language, Adult, Release Decade(one-hot-encoded)
             Using count-vectorize on a concatenated string (repeating feature words based on their weights)
 
-            Run .fit() on the entire dataset of 10000? first to capture all potential categories.
+            Run .fit() on the entire training dataset first to capture all potential categories.
             Afterwards just keep and reuse the vectorizer for all training and usage purposes, to ensure vector structure is the same.
          */
+        val categoryList = GetPreProcessedCategoryWords(movieDetails);
+        //Get the set of unique words from datastore, then form a map before running through the list.
+        //If the map is already formed then reuse it.
+        if(categoryWordsMap.isEmpty())
+        {
+            val set = CategoryWordsDatastore.getSet(appContext);
+            categoryWordsMap = set.associateWith { 0 };
+        }
+        //Used to ensure vector always has the same structure (alphabetical order).
+        val mapCopy = categoryWordsMap.toSortedMap();
+
+        //Only increment, do not add any new words.
+        for(word in categoryList)
+        {
+            if(!mapCopy.containsKey(word)) continue;
+            mapCopy[word] ;
+        }
+
+        val categoryVector = FloatArray(mapCopy.size);
+        for(pair in mapCopy)
+        {
+
+        }
 
 
         return emptyList()
+    }
+
+    //Writes to datastore a Set<String> representing unique words in the categorical strings
+    private suspend fun SaveCategoryUniqueWords(movies : List<MovieDetails>)
+    {
+        //Checks all category words and joins them into a set.
+        var uniqueWords = setOf<String>();
+        for(movie in movies)
+        {
+            uniqueWords = uniqueWords + GetPreProcessedCategoryWords(movie).toSet();
+        }
+        CategoryWordsDatastore.saveSet(appContext, uniqueWords);
     }
 
     //Concatenates Overview, Tagline.
@@ -157,38 +209,53 @@ class Recommender (context : Context){
         return allTags;
     }
 
-    class CountVectorizerMapStore{
-        companion object
-        {
-            suspend fun saveMap(context: Context, map: Map<String, Int>) {
+
+
+
+
+    class CategoryWordsDatastore {
+        companion object {
+            suspend fun saveSet(context: Context, set: Set<String>) {
                 context.dataStore.edit { prefs ->
-                    map.forEach { (key, value) ->
-                        prefs[intPreferencesKey(key)] = value
-                    }
+                    prefs[stringSetPreferencesKey("vocabulary")] = set
                 }
             }
 
-            suspend fun getMap(context: Context): SortedMap<String, Int> {
-                return context.dataStore.data.first().asMap()
-                    .mapKeys { it.key.name }
-                    .filterValues { it is Int }
-                    .mapValues { it.value as Int }
-                    .toSortedMap() //
+            suspend fun getSet(context: Context): Set<String> {
+                return context.dataStore.data
+                    .first()[stringSetPreferencesKey("vocabulary")]
+                    ?: emptySet()
             }
         }
     }
+
+    lateinit var recommenderInstance: Recommender;
+
     private val appContext = context.applicationContext
-    //Sentence Embedder for vectorization of movie summary paragraph
+    //Sentence Embedder for vectorization of movie summary paragraph.
     private val textEmbedder = TextEmbedder(appContext);
+    private var categoryWordsMap = mapOf<String, Int>();
+
     companion object{
         //Weightage modifiers for vectorization of movie
         public var taglineRepeat = 2;
         public var decadeRepeat = 1;
         public var adultRepeat = 3;
         public var languageRepeat = 2;
+
+        //Singleton pattern
+        @Volatile
+        private var INSTANCE: Recommender? = null
+
+        fun getInstance(context: Context): Recommender {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Recommender(context)
+                INSTANCE = instance
+                instance
+            }
+        }
     }
 
     //Private local_database_instance
 
-    //The text -> vector model.
 }
