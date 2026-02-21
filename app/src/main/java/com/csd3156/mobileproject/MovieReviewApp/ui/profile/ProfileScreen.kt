@@ -38,8 +38,8 @@ data object Profile
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    reviewsCount: Int = 142,
-    favoritesCount: Int = 85,
+    reviewsCount: Int = 0,
+    favoritesCount: Int = 0,
     onEditClick: () -> Unit = {},
     onMyReviews: () -> Unit = {},
     onMyWatchlist: () -> Unit = {},
@@ -51,6 +51,8 @@ fun ProfileScreen(
 
     val profileVM : ProfileViewModel = hiltViewModel()
     val currentAccount : AccountDomain? by profileVM.accountInfo.collectAsStateWithLifecycle(null)
+    val reviewCount : Int by profileVM.reviewCount.collectAsStateWithLifecycle(0)
+    val favoritesCount : Int by profileVM.watchlistCount.collectAsStateWithLifecycle(0)
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -147,7 +149,7 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                StatBox(value = reviewsCount, label = "REVIEWS", modifier = Modifier.weight(1f))
+                StatBox(value = reviewCount, label = "REVIEWS", modifier = Modifier.weight(1f))
                 StatBox(value = favoritesCount, label = "FAVORITES", modifier = Modifier.weight(1f))
             }
 

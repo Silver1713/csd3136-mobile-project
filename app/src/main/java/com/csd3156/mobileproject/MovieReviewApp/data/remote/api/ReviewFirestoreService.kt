@@ -2,6 +2,7 @@ package com.csd3156.mobileproject.MovieReviewApp.data.remote.api
 
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.ReviewFirebaseCreateDto
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.ReviewFirebaseDto
+import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.ReviewFirebaseDtoWithMeta
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.ReviewFirebaseUpdateDto
 import com.google.firebase.FirebaseException
 import com.google.firebase.firestore.FirebaseFirestore
@@ -137,6 +138,39 @@ class ReviewFirestoreService @Inject constructor(
         } catch (e: Exception){
             return RequestResult.Error(e.message, e)
 
+        }
+    }
+
+
+
+
+
+    suspend fun getReviewsByUser(userid: String)
+            : RequestResult<List<ReviewFirebaseDtoWithMeta>> {
+        return try {
+            val querySnapshot = firestore
+                .collectionGroup("reviews")
+                .whereEqualTo("uid", userid)
+                .get()
+                .await()
+
+            val reviews = querySnapshot.documents.mapNotNull { document ->
+                val review = document.toObject(ReviewFirebaseDto::class.java)
+                val movieId = document.reference.parent.parent?.id?.toLongOrNull()
+
+                if (review != null && movieId != null) {
+                    ReviewFirebaseDtoWithMeta(
+                        reviewId = document.id,
+                        movieId = movieId,
+                        reviewDto = review
+                    )
+                } else null
+            }
+
+            RequestResult.Success(null, reviews)
+
+        } catch (e: Exception) {
+            RequestResult.Error(e.message, e)
         }
     }
 

@@ -47,10 +47,7 @@ class LocalReviewRepositoryImpl @Inject constructor(
     }
 
     private fun ReviewEntity.toDomain(): MovieReview {
-        val displayDate = Instant.ofEpochMilli(createdAtMillis)
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate()
-            .toString()
+
 
         return MovieReview(
             id = "local-$id",
@@ -58,7 +55,7 @@ class LocalReviewRepositoryImpl @Inject constructor(
             content = content,
             url = "",
             rating = rating,
-            createdAt = displayDate,
+            createdAt = Instant.ofEpochMilli(createdAtMillis),
             photoPath = photoPath
         )
     }

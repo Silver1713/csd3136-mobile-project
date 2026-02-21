@@ -945,7 +945,7 @@ private fun ReviewCard(review: MovieReview) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = review.createdAt.take(10),
+                        text = review.createdAt.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

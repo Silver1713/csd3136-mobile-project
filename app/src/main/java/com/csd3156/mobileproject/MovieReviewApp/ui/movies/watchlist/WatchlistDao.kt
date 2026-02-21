@@ -17,4 +17,7 @@ interface WatchlistDao {
 
     @Query("SELECT * FROM watchlist_movies ORDER BY savedAt DESC")
     fun getAllWatchlist(): Flow<List<WatchlistMovie>>
+
+    @Query("SELECT COUNT(*) FROM watchlist_movies")
+    fun getWatchlistCount() : Flow<Int>
 }

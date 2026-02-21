@@ -56,6 +56,10 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.search.browseMovieViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.Watchlist
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.reviewlist.ReviewList
+import com.csd3156.mobileproject.MovieReviewApp.ui.reviewlist.ReviewListScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.accountsettings.AccountSettings
+import com.csd3156.mobileproject.MovieReviewApp.ui.accountsettings.AccountSettingsScreen
 
 
 
@@ -98,7 +102,7 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
     val movieVM : MovieListViewModel = hiltViewModel()
     val accountVM : AccountViewModel = hiltViewModel()
     val searchQuery : MutableState<String?> = rememberSaveable { mutableStateOf(null) }
-    val accountSelected by accountVM.activeUser.collectAsStateWithLifecycle(null)
+    val accountUiState by accountVM.uiState.collectAsStateWithLifecycle(null)
 
     NavHost(navController = controller, startDestination = startDestination) {
         composable <AccountScreen>{
@@ -161,9 +165,9 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
 
         composable<Profile> {
             LaunchedEffect(
-                key1 = accountSelected
+                key1 = accountUiState?.isLogout
             ) {
-                if (accountSelected == null) {
+                if (accountUiState?.isLogout ?: false) {
                     controller.navigate(
                         AccountScreen
                     ){
@@ -176,7 +180,9 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
             }
             ProfileScreen(
                 modifier = modifier,
+                onMyReviews = { controller.navigate(ReviewList) },
                 onMyWatchlist = { controller.navigate(Watchlist)},
+                onAccountSettings = { controller.navigate(AccountSettings) },
                 onLogout = {
                     accountVM.logout()
                     rootVM.setLoggedIn(false)
@@ -191,6 +197,21 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
                     controller.navigate(MovieDetailsDestination(movieId))
                 }
             )
+        }
+
+        composable<ReviewList> {
+            ReviewListScreen(
+                onBack = { controller.popBackStack() }
+            )
+        }
+
+        composable<AccountSettings> {
+            AccountSettingsScreen(
+                onBack = { controller.popBackStack() }
+            ){
+                controller.popBackStack()
+
+            }
         }
 
 
@@ -228,7 +249,7 @@ fun MovieDetailRoute(
         errorMessage = uiState.errorMessage,
         onBack = onBack,
         onSubmitReview = { author, rating, content, photoPath ->
-            movieListViewModel.addLocalReview(movieId, author, rating, content, photoPath)
+            movieListViewModel.addLocalReview(movieId,movieTitle = uiState.selectedMovieDetails?.title, author, rating, content, photoPath)
         }
     )
 }

@@ -79,6 +79,7 @@ fun accountScreen(accountVM : AccountViewModel, modifier: Modifier, onNavigate :
     val activeUser : AccountDomain? by accountVM.activeUser.collectAsState(initial = null)
 
     if (activeUser != null){
+        accountVM.setIsLogout(false)
         onNavigate(activeUser!!)
         return
     }

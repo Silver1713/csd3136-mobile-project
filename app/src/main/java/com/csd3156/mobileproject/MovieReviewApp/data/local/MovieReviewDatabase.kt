@@ -15,7 +15,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.Wa
 
 @Database(
     entities = [Account::class, ReviewEntity::class,WatchlistMovie::class],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(

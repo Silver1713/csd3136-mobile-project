@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.ReviewRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -15,7 +16,8 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val accountAuth: FirebaseAuth,
     private val accountRepository: AccountRepository,
-    private val watchlistRepository: WatchlistRepository
+    private val watchlistRepository: WatchlistRepository,
+    private val reviewRepository: ReviewRepository
 ) : ViewModel() {
 
     init {
@@ -23,14 +25,18 @@ class ProfileViewModel @Inject constructor(
     }
 
     val accountInfo : Flow<AccountDomain?>  = accountRepository.getActiveAccountRoom()
-
+    val reviewCount : Flow<Int> = reviewRepository.getCachedUserReviewCount()
+    val watchlistCount : Flow<Int> = watchlistRepository.getWatchlistCount()
 
     fun refreshAccount(){
         viewModelScope.launch {
             accountRepository.refreshActiveAccountRemote()
+            reviewRepository.refreshUserReviews()
         }
 
     }
+
+
 
 
 

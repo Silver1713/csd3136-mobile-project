@@ -205,10 +205,10 @@ class MovieListViewModel @Inject constructor(
         }
     }
 
-    fun addLocalReview(movieId: Long, author: String, rating: Double?, content: String, photoPath: String?) {
+    fun addLocalReview(movieId: Long, movieTitle: String?=null ,author: String, rating: Double?, content: String, photoPath: String?) {
         if (content.isBlank()) return
         viewModelScope.launch {
-            reviewRepository.addReview(movieId, rating, content, photoPath)
+            reviewRepository.addReview(movieId,movieTitle ?: "Unknown Title", rating, content, photoPath)
         }
     }
 }

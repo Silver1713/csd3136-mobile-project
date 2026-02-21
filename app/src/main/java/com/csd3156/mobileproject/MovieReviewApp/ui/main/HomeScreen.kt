@@ -385,7 +385,7 @@ fun RowingMoviesContent(
                     MovieContentSection.MOVIE_TRENDING -> MovieCard(
                         index,
                         movie,
-                        false,
+                        true,
                         true,
                         false,
                         true

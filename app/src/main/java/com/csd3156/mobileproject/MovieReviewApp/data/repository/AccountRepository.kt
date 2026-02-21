@@ -9,6 +9,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.FirebaseAuthServ
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.AccountDto
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.CreateAccountDto
+import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.UpdateAccountDto
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -187,6 +188,22 @@ class AccountRepository @Inject constructor(
         accountDao.insert(accountDto.toDomain().toRoomEntity())
 
     }
+
+    suspend fun changeAccountCredentials(fullName: String? = null, bio: String?=null, photoUrl: String?=null) : Boolean {
+        val updateAccDto : UpdateAccountDto = UpdateAccountDto(
+            name = fullName,
+            bio = bio,
+            profileUrl = photoUrl
+        )
+        val accountID: String = firebaseAuthService.GetActiveUserID() ?: return false
+        val result = accountFirestoreService.updateAccount(accountID, updateAccDto)
+
+        refreshActiveAccountRemote()
+        return result
+    }
+
+
+
 
     companion object {
         @Deprecated(

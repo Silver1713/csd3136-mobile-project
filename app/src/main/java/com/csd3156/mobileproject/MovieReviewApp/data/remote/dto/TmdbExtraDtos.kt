@@ -7,6 +7,9 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
 import com.squareup.moshi.Json
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 data class GenreDto(
     val id: Long,
@@ -139,13 +142,26 @@ data class ProviderDto(
     @Json(name = "logo_path") val logoPath: String?
 )
 
+fun parseTmdbDate(dateString: String?): Instant? {
+    val text = dateString?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+
+    return runCatching { Instant.parse(text) }
+        .getOrElse {
+            runCatching {
+                LocalDate.parse(text)
+                    .atStartOfDay()
+                    .toInstant(ZoneOffset.UTC)
+            }.getOrNull()
+        }
+}
+
 fun ReviewDto.toDomain(): MovieReview = MovieReview(
     id = id,
     author = author.orEmpty(),
     content = content.orEmpty(),
     url = url.orEmpty(),
     rating = authorDetails?.rating,
-    createdAt = createdAt.orEmpty(),
+    createdAt = parseTmdbDate(createdAt) ?: Instant.now(),
     photoPath = null
 )
 

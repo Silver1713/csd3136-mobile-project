@@ -16,21 +16,18 @@ data class ReviewEntity(
     val createdAtMillis: Long,
     val photoPath: String? = null,
     val reviewId : String? = null,
-    val userId : String? = null
+    val userId : String? = null,
+    val movieTitle: String? = null,
 ){
     fun toDomain(): MovieReview {
-        val displayDate = Instant.ofEpochMilli(createdAtMillis)
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate()
-            .toString()
-
         return MovieReview(
             id = "local-$id",
+            movieTitle = movieTitle,
             author = author,
             content = content,
             url = "",
             rating = rating,
-            createdAt = displayDate,
+            createdAt = Instant.ofEpochMilli(createdAtMillis),
             photoPath = photoPath
         )
     }

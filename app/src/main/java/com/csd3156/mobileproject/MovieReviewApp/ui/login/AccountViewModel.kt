@@ -55,7 +55,8 @@ class AccountViewModel @Inject constructor(
                     it.copy(
                         accountSelected = accountDomain,
                         isLoginLoading = false,
-                        loginErrorMessage = null
+                        loginErrorMessage = null,
+                        isLogout = false
                     )
                 }
 
@@ -84,6 +85,12 @@ class AccountViewModel @Inject constructor(
                 accountSelected = null,
                 loginErrorMessage = null
             )
+        }
+    }
+
+    fun setIsLogout(value: Boolean){
+        _uiState.update {
+            it.copy(isLogout = value)
         }
     }
 
@@ -147,7 +154,8 @@ class AccountViewModel @Inject constructor(
                                 accountSelected = newAccount,
                                 isRegisterLoading = false,
                                 registerSuccessMessage = "Account created successfully",
-                                registerErrorMessage = null
+                                registerErrorMessage = null,
+                                isLogout = false
                             )
                         }
                     }
@@ -188,7 +196,8 @@ class AccountViewModel @Inject constructor(
                  it.copy(
                      accountSelected = null,
                      isLoginLoading = false,
-                     loginErrorMessage = null
+                     loginErrorMessage = null,
+                     isLogout = true
                  )
              }
          }
@@ -205,5 +214,6 @@ data class AccountUIState(
     val loginErrorMessage: String? = null,
     val isRegisterLoading: Boolean = false,
     val registerErrorMessage: String? = null,
-    val registerSuccessMessage: String? = null
+    val registerSuccessMessage: String? = null,
+    val isLogout : Boolean = true
 )
