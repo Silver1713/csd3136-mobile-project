@@ -158,8 +158,6 @@ class Recommender private constructor(context : Context){
                 recommenderDao.insertAll(movieEntityList)
             }
             isTrained = true;
-            val testMovie = recommenderDao.getMovieById(movies[0].id);
-            print(testMovie?.categoryVector);
         }
     }
 

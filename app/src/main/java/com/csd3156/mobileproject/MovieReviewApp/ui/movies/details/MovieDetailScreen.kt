@@ -283,6 +283,7 @@ private fun MovieDetailContent(
     val localContext = LocalContext.current;
     LaunchedEffect(true) {
         Recommender.getInstance(localContext).TrainModel(listOf(movie));
+        Recommender.getInstance(localContext).GetRecommendations(listOf(movie), 50);
     }
     //TODO: Enddelete
     LazyColumn(
