@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
@@ -54,7 +53,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,10 +61,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.csd3156.mobileproject.MovieReviewApp.R
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
-import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
 import kotlinx.serialization.Serializable
 
 
@@ -93,6 +91,7 @@ fun HomeScreen(
     val homeVM: HomeScreenViewModel = hiltViewModel()
     val isSearch by homeVM.isSearching.collectAsStateWithLifecycle()
     val uiState by homeVM.uiState.collectAsStateWithLifecycle()
+    val accountInfo by homeVM.accountInfo.collectAsStateWithLifecycle(null)
     val searchQuery = uiState.searchQuery
     // Main Screen UI Here
     // Div Start
@@ -111,6 +110,7 @@ fun HomeScreen(
     ) {
         TitleSection(
             homeViewModel = homeVM,
+            accountInfo = accountInfo,
             searchQuery = searchQuery,
             onSearchSubmit = onSearchSubmit,
             onProfileClick = onProfileClick
@@ -287,6 +287,7 @@ fun MovieSearchBar(
 @Composable
 fun TitleSection(
     homeViewModel: HomeScreenViewModel,
+    accountInfo: AccountDomain? = null,
     searchQuery: String,
     onSearchSubmit: (String) -> Unit = {},
     onProfileClick: () -> Unit = {}
@@ -300,7 +301,10 @@ fun TitleSection(
         Spacer(modifier = Modifier.weight(1f))
         Box {
             MakeProfileIcon(
-                Icons.Filled.AccountCircle, Modifier
+                profileUrl = accountInfo?.profileUrl,
+                displayName = accountInfo?.name,
+                username = accountInfo?.username,
+                modifier = Modifier
                     .padding(16.dp)
                     .size(64.dp)
             ) { isProfileMenuExpanded = true }
@@ -348,7 +352,9 @@ fun TitleSection(
 
 @Composable
 fun MakeProfileIcon(
-    drawableVector: ImageVector,
+    profileUrl: String? = null,
+    displayName: String? = null,
+    username: String? = null,
     modifier: Modifier,
     onClick: () -> Unit = {}
 ) {
@@ -360,12 +366,25 @@ fun MakeProfileIcon(
         contentAlignment = Alignment.Center
     ) {
         IconButton(onClick = onClick) {
-            Icon(
-                imageVector = drawableVector,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                contentDescription = "Logout",
-                modifier = Modifier.size(42.dp)
-            )
+            if (!profileUrl.isNullOrBlank()) {
+                LoadImage(
+                    url = profileUrl,
+                    contentDescription = "Profile",
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = displayName?.firstOrNull()?.uppercase()
+                        ?: username?.firstOrNull()?.uppercase()
+                        ?: "?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

@@ -22,11 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
+import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -103,12 +105,27 @@ fun ProfileScreen(
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Avatar",
-                    modifier = Modifier.size(52.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (!currentAccount?.profileUrl.isNullOrBlank()) {
+                    LoadImage(
+                        url = currentAccount?.profileUrl,
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Text(
+                        text = currentAccount?.name
+                            ?.firstOrNull()
+                            ?.uppercase()
+                            ?: currentAccount?.username?.firstOrNull()?.uppercase()
+                            ?: "?",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Spacer(Modifier.height(10.dp))

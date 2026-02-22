@@ -8,14 +8,18 @@ import com.csd3156.mobileproject.MovieReviewApp.common.Resource
 import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jakarta.inject.Inject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class HomeScreenUIState(
@@ -40,7 +44,8 @@ data class HomeScreenUIState(
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
-    private val movieRepo : MovieRepository
+    private val movieRepo : MovieRepository,
+    private val accountRepository: AccountRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeScreenUIState())
@@ -48,14 +53,27 @@ class HomeScreenViewModel @Inject constructor(
 
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+    val accountInfo: Flow<AccountDomain?> = accountRepository.getActiveAccountRoom()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
     fun setIsSearching(value: Boolean) {
         _isSearching.value = value
     }
 
     init {
+        refreshAccount()
         refresh()
         loadGenres()
+    }
+
+    fun refreshAccount() {
+        viewModelScope.launch {
+            accountRepository.refreshActiveAccountRemote()
+        }
     }
 
 
@@ -312,30 +330,7 @@ class HomeScreenViewModel @Inject constructor(
 
 
 
-    @Deprecated(
-        message = "Replace factory with hilt",
-        replaceWith = ReplaceWith("HomeScreenViewModel.provideFactory")
 
-    )
-    companion object {
-        fun provideFactory(context: Context): ViewModelProvider.Factory {
-            val movieRepository = MovieRepositoryImpl.create()
-            return HomeViewModelFactory(movieRepository)
-        }
-    }
 
 }
 
-@Deprecated("Replace factory with Hilt")
-class HomeViewModelFactory(
-    private val movieRepo: MovieRepository
-) : ViewModelProvider.Factory {
-    @Deprecated("Replace factory with Hilt")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        require(modelClass.isAssignableFrom(HomeScreenViewModel::class.java)) {
-            "Unknown ViewModel class: $modelClass"
-        }
-        @Suppress("UNCHECKED_CAST")
-        return HomeScreenViewModel(movieRepo) as T
-    }
-}

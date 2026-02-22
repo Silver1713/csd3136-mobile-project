@@ -67,6 +67,7 @@ configurations.all {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -145,6 +146,7 @@ dependencies {
     // optional - Paging 3 Integration
     implementation(libs.androidx.room.paging)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.ucrop)
     implementation(libs.dagger.hilt.android)
     ksp(libs.dagger.hilt.compiler)
 
