@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,13 +95,11 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstan
 import java.io.File
 import kotlin.math.roundToInt
 
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
-import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.toMovie
+import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
+import kotlinx.coroutines.launch
 
 
 
@@ -117,7 +116,6 @@ fun MovieDetailScreen(
     isLoading: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
-    onSubmitReview: (author: String, rating: Double?, content: String, photoPath: String?) -> Unit,
     onReviewClick: (MovieReview) -> Unit,
     onSeeAllReviews: () -> Unit,
     combinedAverageRating: Double,
@@ -125,15 +123,15 @@ fun MovieDetailScreen(
     modifier: Modifier = Modifier
 ) {
     var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val detailUiState by movieVM.uiState.collectAsState()
     val author by movieVM.currentAccount.collectAsState(null)
     var reviewerName by rememberSaveable { mutableStateOf("") }
     var reviewContent by rememberSaveable { mutableStateOf("") }
     var reviewRating by rememberSaveable { mutableStateOf(6f) }
-    var reviewPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingCapturePath by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val reviewPhotoPath = detailUiState.reviewPhotoPath
 
-//    val db = remember { MovieReviewDatabase.getInstance(context) }
     val watchlistVM : WatchlistViewModel = hiltViewModel()
 
 
@@ -149,22 +147,17 @@ fun MovieDetailScreen(
         }
     }
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) {
-            reviewPhotoPath = pendingCapturePath
-        } else {
-            pendingCapturePath?.let { deleteFileIfExists(it) }
-        }
-        pendingCapturePath = null
+        movieVM.handleTakePictureResult(success)
     }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         val granted = results.values.all { it }
         if (granted) {
             val (captureUri, absolutePath) = context.createReviewImageFile() ?: run {
                 Toast.makeText(context, "Unable to access camera", Toast.LENGTH_SHORT).show()
-                pendingCapturePath = null
+                movieVM.setPendingCapturePath(null)
                 return@rememberLauncherForActivityResult
             }
-            pendingCapturePath = absolutePath
+            movieVM.setPendingCapturePath(absolutePath)
             takePictureLauncher.launch(captureUri)
         } else {
             Toast.makeText(context, "Camera permission is required to add a photo", Toast.LENGTH_SHORT).show()
@@ -278,32 +271,43 @@ fun MovieDetailScreen(
             onRatingChange = { reviewRating = it },
             photoPath = reviewPhotoPath,
             onAddPhoto = {
-                reviewPhotoPath?.let { deleteFileIfExists(it) }
-                reviewPhotoPath = null
                 permissionLauncher.launch(cameraPermissions)
             },
             onRemovePhoto = {
-                reviewPhotoPath?.let { deleteFileIfExists(it) }
-                reviewPhotoPath = null
+                movieVM.clearReviewPhoto()
             },
             onDismiss = {
                 shouldShowReviewDialog = false
-                reviewPhotoPath?.let { deleteFileIfExists(it) }
-                reviewPhotoPath = null
+                movieVM.clearReviewPhotoDraft()
+                movieVM.clearReviewSubmitError()
                 reviewerName = ""
                 reviewContent = ""
                 reviewRating = 6f
             },
             onSubmit = {
-                val normalizedRating = (reviewRating * 10).roundToInt() / 10.0
-                onSubmitReview(reviewerName.trim(), normalizedRating, reviewContent.trim(), reviewPhotoPath)
-                Toast.makeText(context, "Review saved locally", Toast.LENGTH_SHORT).show()
-                reviewerName = ""
-                reviewContent = ""
-                reviewRating = 6f
-                reviewPhotoPath = null
-                shouldShowReviewDialog = false
+                coroutineScope.launch {
+                    val normalizedRating = (reviewRating * 10).roundToInt() / 10.0
+                    val result = movieVM.addLocalReview(
+                        movieId = movie?.id ?: return@launch,
+                        movieTitle = movie.title,
+                        author = reviewerName.trim(),
+                        rating = normalizedRating,
+                        content = reviewContent.trim(),
+                        photoPath = reviewPhotoPath
+                    )
+                    if (result is RequestResult.Success) {
+                        Toast.makeText(context, "Review saved locally", Toast.LENGTH_SHORT).show()
+                        reviewerName = ""
+                        reviewContent = ""
+                        reviewRating = 6f
+                        movieVM.resetReviewPhotoDraftState()
+                        shouldShowReviewDialog = false
+                    }
+                }
             }
+            ,
+            isSubmitting = detailUiState.isSubmittingReview,
+            submitError = detailUiState.reviewSubmitError
         )
     }
 }
@@ -530,7 +534,9 @@ private fun WriteReviewDialog(
     onAddPhoto: () -> Unit,
     onRemovePhoto: () -> Unit,
     onDismiss: () -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    isSubmitting: Boolean,
+    submitError: String?
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -580,30 +586,44 @@ private fun WriteReviewDialog(
                         contentScale = ContentScale.Crop
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(onClick = onAddPhoto) {
+                        TextButton(onClick = onAddPhoto, enabled = !isSubmitting) {
                             Text("Retake photo")
                         }
-                        TextButton(onClick = onRemovePhoto) {
+                        TextButton(onClick = onRemovePhoto, enabled = !isSubmitting) {
                             Text("Remove photo")
                         }
                     }
                 } else {
-                    TextButton(onClick = onAddPhoto) {
+                    TextButton(onClick = onAddPhoto, enabled = !isSubmitting) {
                         Text("Add photo")
                     }
+                }
+                submitError?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         },
         confirmButton = {
             Button(
                 onClick = onSubmit,
-                enabled = content.isNotBlank()
+                enabled = content.isNotBlank() && !isSubmitting
             ) {
-                Text("Submit")
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Submit")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
                 Text("Cancel")
             }
         }
@@ -1000,7 +1020,11 @@ private fun ReviewCard(
             review.photoPath?.let { path ->
                 Spacer(Modifier.height(12.dp))
                 LoadImage(
-                    url = Uri.fromFile(File(path)).toString(),
+                    url = if (path.startsWith("http", ignoreCase = true)) {
+                        path
+                    } else {
+                        Uri.fromFile(File(path)).toString()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp)
@@ -1106,15 +1130,6 @@ private fun Context.createReviewImageFile(): Pair<Uri, String>? {
         val contentUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", imageFile)
         contentUri to imageFile.absolutePath
     }.getOrNull()
-}
-
-private fun deleteFileIfExists(path: String) {
-    runCatching {
-        val file = File(path)
-        if (file.exists()) {
-            file.delete()
-        }
-    }
 }
 
 @Composable

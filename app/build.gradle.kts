@@ -144,6 +144,7 @@ dependencies {
 
     // optional - Paging 3 Integration
     implementation(libs.androidx.room.paging)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.dagger.hilt.android)
     ksp(libs.dagger.hilt.compiler)
 

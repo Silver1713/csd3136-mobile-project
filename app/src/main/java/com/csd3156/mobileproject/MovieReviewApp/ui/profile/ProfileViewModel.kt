@@ -17,7 +17,8 @@ class ProfileViewModel @Inject constructor(
     private val accountAuth: FirebaseAuth,
     private val accountRepository: AccountRepository,
     private val watchlistRepository: WatchlistRepository,
-    private val reviewRepository: ReviewRepository
+    private val reviewRepository: ReviewRepository,
+
 ) : ViewModel() {
 
     init {

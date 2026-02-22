@@ -328,9 +328,6 @@ fun MovieDetailRoute(
         isLoading = isScreenLoading,
         errorMessage = uiState.errorMessage,
         onBack = onBack,
-        onSubmitReview = { author, rating, content, photoPath ->
-            movieListViewModel.addLocalReview(movieId,movieTitle = uiState.selectedMovieDetails?.title, author, rating, content, photoPath)
-        },
         onReviewClick = onReviewClick,
         onSeeAllReviews = onSeeAllReviews,
         combinedAverageRating = combinedAverageRating,

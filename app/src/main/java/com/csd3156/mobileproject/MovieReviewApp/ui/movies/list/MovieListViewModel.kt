@@ -9,6 +9,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.ReviewRepository
+import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Genre
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 import javax.inject.Inject
 
 data class MovieListUiState(
@@ -40,6 +42,11 @@ data class MovieListUiState(
     val selectedMovieLocalReviews: List<MovieReview> = emptyList(),
     val selectedMovieVideos: List<MovieVideo> = emptyList(),
     val selectedMovieWatchProviders: List<WatchProvider> = emptyList(),
+    val reviewPhotoPath: String? = null,
+    val pendingCapturePath: String? = null,
+    val isSubmittingReview: Boolean = false,
+    val reviewSubmitStatus: String? = null,
+    val reviewSubmitError: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 
@@ -205,10 +212,87 @@ class MovieListViewModel @Inject constructor(
         }
     }
 
-    fun addLocalReview(movieId: Long, movieTitle: String?=null ,author: String, rating: Double?, content: String, photoPath: String?) {
-        if (content.isBlank()) return
-        viewModelScope.launch {
-            reviewRepository.addReview(movieId,movieTitle ?: "Unknown Title", rating, content, photoPath)
+    suspend fun addLocalReview(movieId: Long, movieTitle: String?=null ,author: String, rating: Double?, content: String, photoPath: String?) : RequestResult<Unit> {
+        if (content.isBlank()) {
+            return RequestResult.Error("Review content is empty", Exception("Review content is empty"))
+        }
+        _uiState.value = _uiState.value.copy(
+            isSubmittingReview = true,
+            reviewSubmitStatus = if (photoPath.isNullOrBlank()) "Saving review..." else "Uploading photo...",
+            reviewSubmitError = null
+        )
+        val result = reviewRepository.addReview(movieId,movieTitle ?: "Unknown Title", rating, content, photoPath)
+        _uiState.value = when (result) {
+            is RequestResult.Success -> _uiState.value.copy(
+                isSubmittingReview = false,
+                reviewSubmitStatus = null,
+                reviewSubmitError = null
+            )
+            is RequestResult.Error -> _uiState.value.copy(
+                isSubmittingReview = false,
+                reviewSubmitStatus = null,
+                reviewSubmitError = result.message ?: "Failed to submit review"
+            )
+        }
+        return result
+    }
+
+    fun clearReviewSubmitError() {
+        _uiState.value = _uiState.value.copy(reviewSubmitError = null)
+    }
+
+    fun setPendingCapturePath(path: String?) {
+        val existingPending = _uiState.value.pendingCapturePath
+        if (existingPending != null && existingPending != path) {
+            deleteFileIfExists(existingPending)
+        }
+        _uiState.value = _uiState.value.copy(pendingCapturePath = path)
+    }
+
+    fun handleTakePictureResult(success: Boolean) {
+        val pendingPath = _uiState.value.pendingCapturePath
+        val currentPath = _uiState.value.reviewPhotoPath
+        if (success) {
+            if (currentPath != null && currentPath != pendingPath) {
+                deleteFileIfExists(currentPath)
+            }
+            _uiState.value = _uiState.value.copy(
+                reviewPhotoPath = pendingPath,
+                pendingCapturePath = null
+            )
+        } else {
+            pendingPath?.let(::deleteFileIfExists)
+            _uiState.value = _uiState.value.copy(
+                pendingCapturePath = null
+            )
+        }
+    }
+
+    fun clearReviewPhoto() {
+        _uiState.value.reviewPhotoPath?.let(::deleteFileIfExists)
+        _uiState.value = _uiState.value.copy(reviewPhotoPath = null)
+    }
+
+    fun clearReviewPhotoDraft() {
+        _uiState.value.pendingCapturePath?.let(::deleteFileIfExists)
+        _uiState.value.reviewPhotoPath?.let(::deleteFileIfExists)
+        _uiState.value = _uiState.value.copy(
+            pendingCapturePath = null,
+            reviewPhotoPath = null
+        )
+    }
+
+    fun resetReviewPhotoDraftState() {
+        _uiState.value = _uiState.value.copy(
+            pendingCapturePath = null,
+            reviewPhotoPath = null
+        )
+    }
+
+    private fun deleteFileIfExists(path: String) {
+        runCatching {
+            val file = File(path)
+            if (file.exists()) file.delete()
         }
     }
 }

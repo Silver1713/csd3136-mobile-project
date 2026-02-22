@@ -1,11 +1,17 @@
 package com.csd3156.mobileproject.MovieReviewApp.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.core.graphics.scale
+import androidx.exifinterface.media.ExifInterface
 import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Account
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.AccountDAO
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.AccountFirestoreService
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.FirebaseAuthService
+import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.ProfileStorageService
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.AccountDto
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.CreateAccountDto
@@ -16,11 +22,14 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 class AccountRepository @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService,
     private val accountFirestoreService: AccountFirestoreService,
+    private val profileStorageService: ProfileStorageService,
     private val accountDao: AccountDAO
 
 ) {
@@ -121,7 +130,7 @@ class AccountRepository @Inject constructor(
                 }
             }
 
-        } catch (error: FirebaseException) {
+        } catch (error: Exception) {
             firebaseAuthService.deleteCurrentUser()
             return RequestResult.Error(error.message, error)
         }
@@ -151,6 +160,8 @@ class AccountRepository @Inject constructor(
 
 
     suspend fun validateLoginAccount(username: String, password: String): AccountDomain? {
+        if (username.isEmpty() || password.isEmpty()) return null
+
         accountDao.deleteAll()
         val account = findAccountByRemoteUser(username)
         val emailAccount = account?.email
@@ -202,22 +213,79 @@ class AccountRepository @Inject constructor(
         return result
     }
 
-
-
-
-    companion object {
-        @Deprecated(
-            message = "Legacy constructor, use Hilt injection instead"
-        )
-        fun create(context: Context): AccountRepository {
-            val database = MovieReviewDatabase.getInstance(context)
-            return AccountRepository(
-                firebaseAuthService = FirebaseAuthService(FirebaseAuth.getInstance()),
-                accountFirestoreService = AccountFirestoreService(FirebaseFirestore.getInstance()),
-                accountDao = database.accountDao()
+    private fun applyExifOrientation(path: String, bitmap: Bitmap): Bitmap {
+        val matrix = Matrix()
+        val orientation = runCatching {
+            ExifInterface(path).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
             )
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.preScale(-1f, 1f)
+                matrix.postRotate(270f)
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.preScale(-1f, 1f)
+                matrix.postRotate(90f)
+            }
+            else -> return bitmap
+        }
+
+        return runCatching {
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        }.getOrElse { bitmap }
+    }
+
+    fun localToCompressJPEG(
+        path: String?,
+        maxSizePx: Int = 1080,
+        quality: Int = 80
+    ): ByteArray? {
+        val safePath = path ?: return null
+        val original = BitmapFactory.decodeFile(safePath) ?: return null
+        val oriented = applyExifOrientation(safePath, original)
+        val resized = resizeKeepAspect(oriented, maxSizePx)
+
+        return try {
+            ByteArrayOutputStream().use { out ->
+                resized.compress(Bitmap.CompressFormat.JPEG, quality, out)
+                out.toByteArray()
+            }
+        } finally {
+            if (resized !== oriented) resized.recycle()
+            if (oriented !== original) oriented.recycle()
+            original.recycle()
         }
     }
+
+
+
+    private fun resizeKeepAspect(
+        bitmap: Bitmap,
+        maxSizePx : Int
+    ) : Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= maxSizePx && h <= maxSizePx) {
+            return bitmap
+        }
+        val scale = if (w >= h) maxSizePx.toFloat() / w else maxSizePx.toFloat() / h
+        val scaleW = (scale * w).roundToInt().coerceAtLeast(1)
+        val scaleH = (scale * h).roundToInt().coerceAtLeast(1)
+        return bitmap.scale(scaleW, scaleH)
+    }
+
+
+
+
 
 
 }
