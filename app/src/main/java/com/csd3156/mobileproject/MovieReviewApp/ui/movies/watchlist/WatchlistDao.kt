@@ -20,4 +20,6 @@ interface WatchlistDao {
 
     @Query("SELECT COUNT(*) FROM watchlist_movies")
     fun getWatchlistCount() : Flow<Int>
+    @Query("DELETE FROM watchlist_movies")
+    suspend fun clearAll()
 }

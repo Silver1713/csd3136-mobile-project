@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -70,6 +73,7 @@ fun BrowseScreen(
 
     val selectedSort = BrowseSortOption.entries.first { it.name == selectedSortName }
     val selectedGenreKey = selectedGenres.joinToString(",")
+    val gridState = rememberLazyGridState()
 
     LaunchedEffect(selectedSort.sortBy, selectedGenreKey, query.isBlank()) {
         if (query.isBlank()) {
@@ -82,6 +86,29 @@ fun BrowseScreen(
     }
 
     val movies = if (query.isBlank()) uiState.moviesDiscovered else uiState.moviesSearchResults
+
+    LaunchedEffect(
+        gridState,
+        query.isBlank(),
+        movies.size,
+        uiState.isLoadingMore,
+        uiState.searchEndReached,
+        uiState.discoverEndReached
+    ) {
+        snapshotFlow { gridState.layoutInfo }
+            .collect { layoutInfo ->
+                val total = layoutInfo.totalItemsCount
+                if (total == 0) return@collect
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@collect
+                val nearEnd = lastVisible >= total - 4
+                if (!nearEnd) return@collect
+                if (query.isBlank()) {
+                    browseScreenVM.loadNextDiscover()
+                } else {
+                    browseScreenVM.loadNextSearch()
+                }
+            }
+    }
 
     Column(
         modifier = modifier
@@ -187,11 +214,6 @@ fun BrowseScreen(
                 text = if (query.isBlank()) "Browsing Results" else "Search Results",
                 style = MaterialTheme.typography.titleMedium
             )
-            Text(
-                text = "${movies.size} titles",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
 
         Box(
@@ -214,6 +236,7 @@ fun BrowseScreen(
                 )
                 else -> {
                     LazyVerticalGrid(
+                        state = gridState,
                         modifier = Modifier.fillMaxSize(),
                         columns = GridCells.Adaptive(140.dp),
                         contentPadding = PaddingValues(bottom = 24.dp),
@@ -228,6 +251,19 @@ fun BrowseScreen(
                                 withReviewLabel = true,
                                 withTrendingLabel = false
                             ) { onMovieClick(movie.id) }
+                        }
+
+                        if (uiState.isLoadingMore) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
                         }
                     }
                 }

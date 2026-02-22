@@ -32,8 +32,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.Main
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.HomeScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.main.MovieExtendedListScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.main.MovieContentSection
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.details.MovieDetailScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
 import com.csd3156.mobileproject.MovieReviewApp.ui.search.SearchScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.search.BrowseScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.theme.MovieReviewAppTheme
@@ -60,6 +63,8 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.reviewlist.ReviewList
 import com.csd3156.mobileproject.MovieReviewApp.ui.reviewlist.ReviewListScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.accountsettings.AccountSettings
 import com.csd3156.mobileproject.MovieReviewApp.ui.accountsettings.AccountSettingsScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.reviews.MovieReviewsScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.reviews.ReviewDetailsScreen
 
 
 
@@ -133,7 +138,31 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
                         launchSingleTop = true
                         restoreState = true
                     }
+                },
+                onSectionSeeMore = { section ->
+                    controller.navigate(
+                        MovieExtendedListDestination(section = section.name)
+                    )
+                },
+                onProfileClick = {
+                    accountVM.logout()
+                    rootVM.setLoggedIn(false)
+                    controller.navigate(AccountScreen) {
+                        popUpTo(controller.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
+            )
+        }
+        composable<MovieExtendedListDestination> {
+            val args = it.toRoute<MovieExtendedListDestination>()
+            MovieExtendedListScreen(
+                sectionKey = args.section,
+                onBack = { controller.popBackStack() },
+                onMovieClick = { movieId ->
+                    controller.navigate(MovieDetailsDestination(movieId))
+                },
+                modifier = modifier
             )
         }
         composable<SearchScreen>{
@@ -159,7 +188,45 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
                 movieId = args.movieId,
                 modifier = modifier,
                 movieListViewModel = movieVM,
-                onBack = { controller.popBackStack() }
+                onBack = { controller.popBackStack() },
+                onReviewClick = { review ->
+                    controller.navigate(
+                        ReviewDetailsDestination(
+                            movieId = args.movieId,
+                            reviewId = review.id
+                        )
+                    )
+                },
+                onSeeAllReviews = {
+                    controller.navigate(MovieReviewsDestination(movieId = args.movieId))
+                }
+            )
+        }
+
+        composable<MovieReviewsDestination> {
+            val args = it.toRoute<MovieReviewsDestination>()
+            MovieReviewsScreen(
+                movieId = args.movieId,
+                onBack = { controller.popBackStack() },
+                onReviewClick = { review ->
+                    controller.navigate(
+                        ReviewDetailsDestination(
+                            movieId = args.movieId,
+                            reviewId = review.id
+                        )
+                    )
+                },
+                modifier = modifier
+            )
+        }
+
+        composable<ReviewDetailsDestination> {
+            val args = it.toRoute<ReviewDetailsDestination>()
+            ReviewDetailsScreen(
+                movieId = args.movieId,
+                reviewId = args.reviewId,
+                onBack = { controller.popBackStack() },
+                modifier = modifier
             )
         }
 
@@ -224,7 +291,9 @@ fun MovieDetailRoute(
     movieId: Long,
     modifier: Modifier = Modifier,
     movieListViewModel: MovieListViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onReviewClick: (MovieReview) -> Unit,
+    onSeeAllReviews: () -> Unit
 ) {
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -238,6 +307,17 @@ fun MovieDetailRoute(
 
     val isScreenLoading = uiState.selectedMovieDetails?.id != movieId && uiState.isLoading
     val combinedReviews = uiState.selectedMovieLocalReviews + uiState.selectedMovieReviews
+    val localRatings = uiState.selectedMovieLocalReviews.mapNotNull { it.rating }
+    val tmdbAverage = uiState.selectedMovieDetails?.rating ?: 0.0
+    val tmdbCount = uiState.selectedMovieDetails?.voteCount ?: 0
+    val localCount = localRatings.size
+    val localAverage = if (localCount > 0) localRatings.average() else 0.0
+    val combinedRatingCount = tmdbCount + localCount
+    val combinedAverageRating = if (combinedRatingCount > 0) {
+        ((tmdbAverage * tmdbCount) + (localAverage * localCount)) / combinedRatingCount
+    } else {
+        0.0
+    }
     MovieDetailScreen(
         modifier = modifier,
         movieVM = movieListViewModel,
@@ -250,7 +330,11 @@ fun MovieDetailRoute(
         onBack = onBack,
         onSubmitReview = { author, rating, content, photoPath ->
             movieListViewModel.addLocalReview(movieId,movieTitle = uiState.selectedMovieDetails?.title, author, rating, content, photoPath)
-        }
+        },
+        onReviewClick = onReviewClick,
+        onSeeAllReviews = onSeeAllReviews,
+        combinedAverageRating = combinedAverageRating,
+        combinedRatingCount = combinedRatingCount
     )
 }
 
@@ -259,6 +343,12 @@ data object P2
 
 @Serializable
 data class MovieDetailsDestination(val movieId: Long)
+@Serializable
+data class MovieExtendedListDestination(val section: String)
+@Serializable
+data class MovieReviewsDestination(val movieId: Long)
+@Serializable
+data class ReviewDetailsDestination(val movieId: Long, val reviewId: String)
 @Composable
 fun BottomBar(navController: NavHostController) {
 

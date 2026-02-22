@@ -10,6 +10,7 @@ data class WatchlistMovie(
     val posterUrl: String,
     val releaseDate: String,
     val rating: Double,
-    val savedAt: Long = System.currentTimeMillis()
+    val savedAt: Long = System.currentTimeMillis(),
+    val firstGenres: String? = "Unspecified"
 )
 

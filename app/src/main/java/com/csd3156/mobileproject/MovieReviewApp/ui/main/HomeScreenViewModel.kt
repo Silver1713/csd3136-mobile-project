@@ -22,6 +22,15 @@ data class HomeScreenUIState(
     val moviesPopular: List<Movie> = emptyList(),
     val moviesTrending: List<Movie> = emptyList(),
     val moviesDiscovered: List<Movie> = emptyList(),
+    val popularPage: Int = 0,
+    val trendingPage: Int = 0,
+    val discoverPage: Int = 0,
+    val isLoadingPopularMore: Boolean = false,
+    val isLoadingTrendingMore: Boolean = false,
+    val isLoadingDiscoverMore: Boolean = false,
+    val popularEndReached: Boolean = false,
+    val trendingEndReached: Boolean = false,
+    val discoverEndReached: Boolean = false,
     val moviesSearchResults: List<Movie> = emptyList(),
     val genres: List<Genre> = emptyList(),
     val searchQuery: String = "",
@@ -47,59 +56,28 @@ class HomeScreenViewModel @Inject constructor(
     init {
         refresh()
         loadGenres()
-        discoverMovies(
-            sortBy = "vote_average.desc",
-            voteCountGte = 500,
-            includeAdult = false
-        )
     }
 
 
 
     fun refresh(){
-        viewModelScope.launch {
-            movieRepo.getPopularMovies().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
-
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesPopular = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            movieRepo.getTrendingMovies().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
-
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesTrending = resource.data,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-
-                    is Resource.Error -> _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = resource.message
-                        )
-                }
-            }
-        }
+        _uiState.value = _uiState.value.copy(
+            moviesPopular = emptyList(),
+            moviesTrending = emptyList(),
+            moviesDiscovered = emptyList(),
+            popularPage = 0,
+            trendingPage = 0,
+            discoverPage = 0,
+            popularEndReached = false,
+            trendingEndReached = false,
+            discoverEndReached = false,
+            isLoadingPopularMore = false,
+            isLoadingTrendingMore = false,
+            isLoadingDiscoverMore = false
+        )
+        loadPopularPage(1)
+        loadTrendingPage(1)
+        loadDiscoverPage(1)
     }
 
     fun loadGenres() {
@@ -155,18 +133,30 @@ class HomeScreenViewModel @Inject constructor(
             ).collect { resource ->
                 when (resource) {
                     is Resource.Loading -> _uiState.value =
-                        _uiState.value.copy(isLoading = true, errorMessage = null)
+                        if (page == 1) {
+                            _uiState.value.copy(isLoading = true, errorMessage = null)
+                        } else {
+                            _uiState.value.copy(isLoadingDiscoverMore = true, errorMessage = null)
+                        }
 
-                    is Resource.Success -> _uiState.value =
-                        _uiState.value.copy(
-                            moviesDiscovered = resource.data,
+                    is Resource.Success -> {
+                        val existing = if (page == 1) emptyList() else _uiState.value.moviesDiscovered
+                        val existingIds = existing.map { it.id }.toHashSet()
+                        val incoming = resource.data.filterNot { it.id in existingIds }
+                        _uiState.value = _uiState.value.copy(
+                            moviesDiscovered = existing + incoming,
+                            discoverPage = page,
+                            discoverEndReached = resource.data.isEmpty(),
                             isLoading = false,
+                            isLoadingDiscoverMore = false,
                             errorMessage = null
                         )
+                    }
 
                     is Resource.Error -> _uiState.value =
                         _uiState.value.copy(
                             isLoading = false,
+                            isLoadingDiscoverMore = false,
                             errorMessage = resource.message
                         )
                 }
@@ -217,6 +207,105 @@ class HomeScreenViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun loadNextPopular() {
+        val state = _uiState.value
+        if (state.isLoadingPopularMore || state.popularEndReached || state.popularPage <= 0) return
+        loadPopularPage(state.popularPage + 1)
+    }
+
+    fun loadNextTrending() {
+        val state = _uiState.value
+        if (state.isLoadingTrendingMore || state.trendingEndReached || state.trendingPage <= 0) return
+        loadTrendingPage(state.trendingPage + 1)
+    }
+
+    fun loadNextDiscover() {
+        val state = _uiState.value
+        if (state.isLoadingDiscoverMore || state.discoverEndReached || state.discoverPage <= 0) return
+        loadDiscoverPage(state.discoverPage + 1)
+    }
+
+    private fun loadPopularPage(page: Int) {
+        viewModelScope.launch {
+            movieRepo.getPopularMovies(page = page).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.value =
+                        if (page == 1) {
+                            _uiState.value.copy(isLoading = true, errorMessage = null)
+                        } else {
+                            _uiState.value.copy(isLoadingPopularMore = true, errorMessage = null)
+                        }
+
+                    is Resource.Success -> {
+                        val existing = if (page == 1) emptyList() else _uiState.value.moviesPopular
+                        val existingIds = existing.map { it.id }.toHashSet()
+                        val incoming = resource.data.filterNot { it.id in existingIds }
+                        _uiState.value = _uiState.value.copy(
+                            moviesPopular = existing + incoming,
+                            popularPage = page,
+                            popularEndReached = resource.data.isEmpty(),
+                            isLoading = false,
+                            isLoadingPopularMore = false,
+                            errorMessage = null
+                        )
+                    }
+
+                    is Resource.Error -> _uiState.value =
+                        _uiState.value.copy(
+                            isLoading = false,
+                            isLoadingPopularMore = false,
+                            errorMessage = resource.message
+                        )
+                }
+            }
+        }
+    }
+
+    private fun loadTrendingPage(page: Int) {
+        viewModelScope.launch {
+            movieRepo.getTrendingMovies(page = page).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.value =
+                        if (page == 1) {
+                            _uiState.value.copy(isLoading = true, errorMessage = null)
+                        } else {
+                            _uiState.value.copy(isLoadingTrendingMore = true, errorMessage = null)
+                        }
+
+                    is Resource.Success -> {
+                        val existing = if (page == 1) emptyList() else _uiState.value.moviesTrending
+                        val existingIds = existing.map { it.id }.toHashSet()
+                        val incoming = resource.data.filterNot { it.id in existingIds }
+                        _uiState.value = _uiState.value.copy(
+                            moviesTrending = existing + incoming,
+                            trendingPage = page,
+                            trendingEndReached = resource.data.isEmpty(),
+                            isLoading = false,
+                            isLoadingTrendingMore = false,
+                            errorMessage = null
+                        )
+                    }
+
+                    is Resource.Error -> _uiState.value =
+                        _uiState.value.copy(
+                            isLoading = false,
+                            isLoadingTrendingMore = false,
+                            errorMessage = resource.message
+                        )
+                }
+            }
+        }
+    }
+
+    private fun loadDiscoverPage(page: Int) {
+        discoverMovies(
+            page = page,
+            sortBy = "vote_average.desc",
+            voteCountGte = 500,
+            includeAdult = false
+        )
     }
 
 

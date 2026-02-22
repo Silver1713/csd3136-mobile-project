@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,14 +32,23 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DockedSearchBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +85,9 @@ enum class MovieContentSection {
 fun HomeScreen(
     modifier: Modifier = Modifier,
     onMovieClick: (Long) -> Unit,
-    onSearchSubmit: (String) -> Unit = {}
+    onSearchSubmit: (String) -> Unit = {},
+    onSectionSeeMore: (MovieContentSection) -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
     // Create HomeScreen ViewModel
     val homeVM: HomeScreenViewModel = hiltViewModel()
@@ -98,7 +112,8 @@ fun HomeScreen(
         TitleSection(
             homeViewModel = homeVM,
             searchQuery = searchQuery,
-            onSearchSubmit = onSearchSubmit
+            onSearchSubmit = onSearchSubmit,
+            onProfileClick = onProfileClick
         )
         if (searchQuery.isNotBlank()) {
             homeVM.setIsSearching(true)
@@ -135,13 +150,13 @@ fun HomeScreen(
                     rememberScrollState()
                 )
             ) {
-                Sections(
-                    "Popular",
-                    null,
+                HomeSectionHeader(
+                    title = "Popular",
                     modifier = Modifier.padding(
-                        top = 16.dp, bottom = 16.dp,
+                        top = 16.dp, bottom = 8.dp,
                         start = 16.dp, end = 16.dp
-                    )
+                    ),
+                    onSeeMore = { onSectionSeeMore(MovieContentSection.MOVIE_REC) }
                 )
                 RowingMoviesContent(
                     homeVM,
@@ -149,13 +164,13 @@ fun HomeScreen(
                     mod = Modifier.padding(0.dp),
                     onMovieClick = onMovieClick
                 )
-                Sections(
-                    "Trending Now",
-                    null,
+                HomeSectionHeader(
+                    title = "Trending Now",
                     modifier = Modifier.padding(
-                        top = 16.dp, bottom = 16.dp,
+                        top = 16.dp, bottom = 8.dp,
                         start = 16.dp, end = 16.dp
-                    )
+                    ),
+                    onSeeMore = { onSectionSeeMore(MovieContentSection.MOVIE_TRENDING) }
                 )
                 RowingMoviesContent(
                     homeVM,
@@ -163,13 +178,13 @@ fun HomeScreen(
                     mod = Modifier,
                     onMovieClick = onMovieClick
                 )
-                Sections(
-                    "Explore",
-                    null,
+                HomeSectionHeader(
+                    title = "Explore",
                     modifier = Modifier.padding(
-                        top = 16.dp, bottom = 16.dp,
+                        top = 16.dp, bottom = 8.dp,
                         start = 16.dp, end = 16.dp
-                    )
+                    ),
+                    onSeeMore = { onSectionSeeMore(MovieContentSection.MOVIE_EXPLORE) }
                 )
                 GridMovieContent(
                     homeViewModel = homeVM,
@@ -184,6 +199,31 @@ fun HomeScreen(
 
     }
 
+}
+
+@Composable
+private fun HomeSectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    onSeeMore: () -> Unit
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        TextButton(onClick = onSeeMore) {
+            Text(
+                text = "See more",
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -248,18 +288,36 @@ fun MovieSearchBar(
 fun TitleSection(
     homeViewModel: HomeScreenViewModel,
     searchQuery: String,
-    onSearchSubmit: (String) -> Unit = {}
+    onSearchSubmit: (String) -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
+    var isProfileMenuExpanded by rememberSaveable { mutableStateOf(false) }
+
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Sections("Discover", "What to watch today?", Modifier.padding(16.dp))
         Spacer(modifier = Modifier.weight(1f))
-        MakeProfileIcon(
-            Icons.Filled.AccountCircle, Modifier
-                .padding(16.dp)
-                .size(64.dp)
-        )
+        Box {
+            MakeProfileIcon(
+                Icons.Filled.AccountCircle, Modifier
+                    .padding(16.dp)
+                    .size(64.dp)
+            ) { isProfileMenuExpanded = true }
+
+            DropdownMenu(
+                expanded = isProfileMenuExpanded,
+                onDismissRequest = { isProfileMenuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Log out") },
+                    onClick = {
+                        isProfileMenuExpanded = false
+                        onProfileClick()
+                    }
+                )
+            }
+        }
 
     }
     Row(
@@ -289,7 +347,11 @@ fun TitleSection(
 }
 
 @Composable
-fun MakeProfileIcon(drawableVector: ImageVector, modifier: Modifier) {
+fun MakeProfileIcon(
+    drawableVector: ImageVector,
+    modifier: Modifier,
+    onClick: () -> Unit = {}
+) {
     Box(
         modifier = modifier
             .clip(CircleShape)
@@ -297,12 +359,14 @@ fun MakeProfileIcon(drawableVector: ImageVector, modifier: Modifier) {
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = drawableVector,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            contentDescription = null,
-            modifier = Modifier.size(42.dp)
-        )
+        IconButton(onClick = onClick) {
+            Icon(
+                imageVector = drawableVector,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                contentDescription = "Logout",
+                modifier = Modifier.size(42.dp)
+            )
+        }
     }
 }
 
@@ -315,8 +379,30 @@ fun GridMovieContent(
     onMovieClick: (Long) -> Unit
 ) {
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+    val gridState = rememberLazyGridState()
+
+    LaunchedEffect(
+        gridState,
+        uiState.moviesDiscovered.size,
+        uiState.isLoadingDiscoverMore,
+        uiState.discoverEndReached
+    ) {
+        if (movieType != MovieContentSection.MOVIE_EXPLORE) return@LaunchedEffect
+        snapshotFlow { gridState.layoutInfo }
+            .collect { layoutInfo ->
+                val total = layoutInfo.totalItemsCount
+                if (total == 0) return@collect
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@collect
+                val nearEnd = lastVisible >= total - 4
+                if (nearEnd) {
+                    homeViewModel.loadNextDiscover()
+                }
+            }
+    }
+
     Column(modifier = modifier) {
         LazyVerticalGrid(
+            state = gridState,
             modifier = Modifier.height(600.dp),
             contentPadding = PaddingValues(16.dp),
             columns = GridCells.Adaptive(140.dp),
@@ -343,6 +429,18 @@ fun GridMovieContent(
 
 
             }
+            if (movieType == MovieContentSection.MOVIE_EXPLORE && uiState.isLoadingDiscoverMore) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
         }
     }
 }
@@ -355,6 +453,32 @@ fun RowingMoviesContent(
     onMovieClick: (Long) -> Unit
 ) {
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(
+        listState,
+        movieType,
+        uiState.moviesPopular.size,
+        uiState.moviesTrending.size,
+        uiState.isLoadingPopularMore,
+        uiState.isLoadingTrendingMore,
+        uiState.popularEndReached,
+        uiState.trendingEndReached
+    ) {
+        snapshotFlow { listState.layoutInfo }
+            .collect { layoutInfo ->
+                val total = layoutInfo.totalItemsCount
+                if (total == 0) return@collect
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@collect
+                val nearEnd = lastVisible >= total - 3
+                if (!nearEnd) return@collect
+                when (movieType) {
+                    MovieContentSection.MOVIE_REC -> homeViewModel.loadNextPopular()
+                    MovieContentSection.MOVIE_TRENDING -> homeViewModel.loadNextTrending()
+                    else -> Unit
+                }
+            }
+    }
 
     Column(
         modifier = mod
@@ -362,6 +486,7 @@ fun RowingMoviesContent(
 
 
         LazyRow(
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -393,6 +518,25 @@ fun RowingMoviesContent(
 
                     MovieContentSection.MOVIE_EXPLORE -> {}
                     else -> {}
+                }
+            }
+
+            val isLoadingMore = when (movieType) {
+                MovieContentSection.MOVIE_REC -> uiState.isLoadingPopularMore
+                MovieContentSection.MOVIE_TRENDING -> uiState.isLoadingTrendingMore
+                MovieContentSection.MOVIE_EXPLORE -> false
+            }
+
+            if (isLoadingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .height(220.dp)
+                            .width(80.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
         }

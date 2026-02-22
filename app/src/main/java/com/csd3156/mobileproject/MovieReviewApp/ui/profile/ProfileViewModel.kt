@@ -32,6 +32,8 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             accountRepository.refreshActiveAccountRemote()
             reviewRepository.refreshUserReviews()
+            watchlistRepository.refreshWatchlist()
+
         }
 
     }

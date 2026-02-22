@@ -96,6 +96,7 @@ import kotlin.math.roundToInt
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
@@ -117,6 +118,10 @@ fun MovieDetailScreen(
     errorMessage: String?,
     onBack: () -> Unit,
     onSubmitReview: (author: String, rating: Double?, content: String, photoPath: String?) -> Unit,
+    onReviewClick: (MovieReview) -> Unit,
+    onSeeAllReviews: () -> Unit,
+    combinedAverageRating: Double,
+    combinedRatingCount: Int,
     modifier: Modifier = Modifier
 ) {
     var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
@@ -128,8 +133,8 @@ fun MovieDetailScreen(
     var pendingCapturePath by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
-    val db = remember { MovieReviewDatabase.getInstance(context) }
-    val watchlistVM = remember { WatchlistViewModel(WatchlistRepository(db.watchlistDao())) }
+//    val db = remember { MovieReviewDatabase.getInstance(context) }
+    val watchlistVM : WatchlistViewModel = hiltViewModel()
 
 
 
@@ -195,12 +200,16 @@ fun MovieDetailScreen(
                     movie = movie,
                     reviews = reviews,
                     watchProviders = watchProviders,
+                    combinedAverageRating = combinedAverageRating,
+                    combinedRatingCount = combinedRatingCount,
                     hasTrailer = primaryTrailer != null,
                     onWatchTrailer = {
                         primaryTrailer?.let { trailerToPlay = it }
                     },
                     onBack = onBack,
                     onWriteReview = { shouldShowReviewDialog = true },
+                    onReviewClick = onReviewClick,
+                    onSeeAllReviews = onSeeAllReviews,
                     isSaved = isSaved,
                     onToggleWatchlist = { watchlistVM.toggle(movie.toMovie(), isSaved) }
                 )
@@ -304,10 +313,14 @@ private fun MovieDetailContent(
     movie: MovieDetails,
     reviews: List<MovieReview>,
     watchProviders: List<WatchProvider>,
+    combinedAverageRating: Double,
+    combinedRatingCount: Int,
     hasTrailer: Boolean,
     onWatchTrailer: () -> Unit,
     onBack: () -> Unit,
     onWriteReview: () -> Unit,
+    onReviewClick: (MovieReview) -> Unit,
+    onSeeAllReviews: () -> Unit,
     isSaved: Boolean,
     onToggleWatchlist: () -> Unit
 ) {
@@ -339,10 +352,13 @@ private fun MovieDetailContent(
             }
         }
         item {
-            ReviewsHeader()
+            ReviewsHeader(onSeeAllReviews = onSeeAllReviews)
         }
         item {
-            MovieRatingSummary(movie = movie)
+            MovieRatingSummary(
+                rating = combinedAverageRating,
+                ratingCount = combinedRatingCount
+            )
         }
         item {
             ReviewActions(onWriteReview = onWriteReview)
@@ -360,7 +376,10 @@ private fun MovieDetailContent(
             }
         } else {
             items(reviews.take(3)) { review ->
-                ReviewCard(review = review)
+                ReviewCard(
+                    review = review,
+                    onClick = { onReviewClick(review) }
+                )
             }
         }
     }
@@ -732,7 +751,7 @@ private fun WatchProviderChip(provider: WatchProvider) {
 }
 
 @Composable
-private fun ReviewsHeader() {
+private fun ReviewsHeader(onSeeAllReviews: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -745,20 +764,20 @@ private fun ReviewsHeader() {
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground
         )
-        TextButton(onClick = { }) {
+        TextButton(onClick = onSeeAllReviews) {
             Text(text = "See all")
         }
     }
 }
 
 @Composable
-private fun MovieRatingSummary(movie: MovieDetails) {
-    val breakdown = remember(movie.id, movie.rating) {
-        val base = (movie.rating / 10.0).coerceIn(0.1, 1.0).toFloat()
-        (0 until 5).map { index ->
-            val stars = 5 - index
+private fun MovieRatingSummary(rating: Double, ratingCount: Int) {
+    val breakdown = remember(rating) {
+        val bucketLabels = listOf("8-10", "6-8", "4-6", "2-4", "0-2")
+        val base = (rating / 10.0).coerceIn(0.1, 1.0).toFloat()
+        bucketLabels.mapIndexed { index, label ->
             val progress = (base - index * 0.15f).coerceIn(0.05f, 1f)
-            stars to progress
+            label to progress
         }
     }
 
@@ -778,7 +797,7 @@ private fun MovieRatingSummary(movie: MovieDetails) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = String.format("%.1f", movie.rating),
+                    text = String.format("%.1f", rating),
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -789,7 +808,7 @@ private fun MovieRatingSummary(movie: MovieDetails) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "${movie.voteCount} reviews",
+                    text = "$ratingCount ratings",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -801,8 +820,8 @@ private fun MovieRatingSummary(movie: MovieDetails) {
                 color = MaterialTheme.colorScheme.outlineVariant
             ) {}
             Column(modifier = Modifier.weight(1f)) {
-                breakdown.forEach { (stars, progress) ->
-                    RatingBreakdownRow(stars = stars, progress = progress)
+                breakdown.forEach { (label, progress) ->
+                    RatingBreakdownRow(label = label, progress = progress)
                 }
             }
         }
@@ -810,7 +829,7 @@ private fun MovieRatingSummary(movie: MovieDetails) {
 }
 
 @Composable
-private fun RatingBreakdownRow(stars: Int, progress: Float) {
+private fun RatingBreakdownRow(label: String, progress: Float) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -818,8 +837,8 @@ private fun RatingBreakdownRow(stars: Int, progress: Float) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = stars.toString(),
-            modifier = Modifier.width(16.dp),
+            text = label,
+            modifier = Modifier.width(34.dp),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -913,13 +932,17 @@ private fun QuickActionCard(
 }
 
 @Composable
-private fun ReviewCard(review: MovieReview) {
+private fun ReviewCard(
+    review: MovieReview,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 8.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        onClick = onClick
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
