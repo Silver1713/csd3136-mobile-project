@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
@@ -89,6 +90,17 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstan
 import java.io.File
 import kotlin.math.roundToInt
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.toMovie
+
+
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieDetailScreen(
@@ -109,6 +121,15 @@ fun MovieDetailScreen(
     var reviewPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingCapturePath by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    val db = remember { MovieReviewDatabase.getInstance(context) }
+    val watchlistVM = remember { WatchlistViewModel(WatchlistRepository(db.watchlistDao())) }
+
+
+
+
+
+
     val cameraPermissions = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
@@ -162,6 +183,8 @@ fun MovieDetailScreen(
     ) {
         when {
             movie != null -> {
+                val isSaved by watchlistVM.isSaved(movie.id).collectAsState(initial = false)
+
                 MovieDetailContent(
                     movie = movie,
                     reviews = reviews,
@@ -171,7 +194,9 @@ fun MovieDetailScreen(
                         primaryTrailer?.let { trailerToPlay = it }
                     },
                     onBack = onBack,
-                    onWriteReview = { shouldShowReviewDialog = true }
+                    onWriteReview = { shouldShowReviewDialog = true },
+                    isSaved = isSaved,
+                    onToggleWatchlist = { watchlistVM.toggle(movie.toMovie(), isSaved) }
                 )
             }
 
@@ -276,7 +301,9 @@ private fun MovieDetailContent(
     hasTrailer: Boolean,
     onWatchTrailer: () -> Unit,
     onBack: () -> Unit,
-    onWriteReview: () -> Unit
+    onWriteReview: () -> Unit,
+    isSaved: Boolean,
+    onToggleWatchlist: () -> Unit
 ) {
 
     //TODO: Delete
@@ -296,7 +323,9 @@ private fun MovieDetailContent(
         item {
             ActionButtons(
                 hasTrailer = hasTrailer,
-                onWatchTrailer = onWatchTrailer
+                onWatchTrailer = onWatchTrailer,
+                isSaved = isSaved,
+                onToggleWatchlist = onToggleWatchlist
             )
         }
         item {
@@ -566,7 +595,9 @@ private fun WriteReviewDialog(
 @Composable
 private fun ActionButtons(
     hasTrailer: Boolean,
-    onWatchTrailer: () -> Unit
+    onWatchTrailer: () -> Unit,
+    isSaved: Boolean,
+    onToggleWatchlist: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -584,13 +615,16 @@ private fun ActionButtons(
             onClick = onWatchTrailer
         )
         MovieActionButton(
-            text = "Watchlist",
-            icon = Icons.Rounded.BookmarkAdd,
+//            text = "Watchlist",
+//            icon = Icons.Rounded.BookmarkAdd,
+            icon = if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkAdd,
             modifier = Modifier.weight(1f),
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             borderColor = MaterialTheme.colorScheme.outlineVariant,
-            onClick = { }
+            text = if (isSaved) "Saved" else "Watchlist",
+            onClick = onToggleWatchlist
+
         )
     }
 }
