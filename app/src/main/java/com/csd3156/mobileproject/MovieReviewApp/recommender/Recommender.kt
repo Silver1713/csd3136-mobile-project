@@ -96,7 +96,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.SortedMap
 import javax.inject.Singleton
-
+import org.ejml.simple.SimpleMatrix
+import java.util.PriorityQueue
+import kotlin.collections.toDoubleArray
+import kotlin.math.absoluteValue
 
 
 //Datastore for category unique words set.
@@ -164,18 +167,95 @@ class Recommender private constructor(context : Context){
         Brief: Returns a list of movie ids as recommendations, based on the user's watchlist of movies.
         Must train the model before calling this.
         A higher number of movies in the watchlist will give more accurate results.
-     */
-    suspend fun GetRecommendations(userWatchlist : List<MovieDetails>, numRecommendations : Int) : Flow<Int> {
-        //Fool-proof, ensure cpu-heavy task doesn't block caller thread which may have called this on the wrong thread.
-        withContext(Dispatchers.Default) {
 
+        Returns a list where
+     */
+    suspend fun GetRecommendations(userWatchlist : List<MovieDetails>, numRecommendations : Int) : List<ScoreResult> {
+        if (userWatchlist.isEmpty()) return emptyList();
+        val recommenderDatabase = RecommenderDatabase.getDatabase(appContext);
+        val recommenderDao = recommenderDatabase.recommenderDao();
+        //Fool-proof, ensure cpu-heavy task doesn't block caller thread which may have called this on the wrong thread.
+        val recommendationList = withContext(Dispatchers.Default) {
+            /*
+                1. Get the vectors of user's preferences, by taking a weighted average of all movie vectors in their watchlist.
+                2. Get the 2 matrixes from database, and perform cosine similarity with the user's vector
+                --> Stream it in batches so it doesn't eat too much ram.
+                2b. For each movie add scores together using feature weight and weighted rating.
+                3. Find top X movies with highest scores.
+             */
+            //Get user's preferences.
+            var (userOverviewTagVector, userCategoryVector) = CalculateUserPreferences(userWatchlist, recommenderDao);
+            if(userOverviewTagVector == null || userCategoryVector == null) return@withContext emptyList<ScoreResult>();
+
+            //Stores score results for each movie, where movies with lower scores are at the head.
+            val topScores = PriorityQueue<ScoreResult>(compareBy { it.score })
+
+            //Perform cosine similarity, multiply by feature weight and weighted rating, before summing score.
+            //Cosine Similarity: A.B / |A||B|  so normalize A and B first.
+            userOverviewTagVector = userOverviewTagVector.divide(userOverviewTagVector.normF());
+            userCategoryVector = userCategoryVector.divide(userCategoryVector.normF());
+
+            //Pagination, calculate cosine similarity with batches of rows.
+            val pageSize = 50;
+            var offset = 0;
+            //Compute in batches of 50 or less at a time.
+            while (true) {
+                val batch = recommenderDao.getMoviesPaged(pageSize, offset)
+                if (batch.isEmpty()) break //Stop when end of database.
+
+                // Convert batch to Matrices. Ensure user preference vector size and stored feature vector size is the same for each type.
+                val overviewMatrix = SimpleMatrix(batch.size, userOverviewTagVector.numRows())
+                val categoryMatrix = SimpleMatrix(batch.size, userCategoryVector.numRows())
+                batch.forEachIndexed { i, movie ->
+                    overviewMatrix.setRow(i, 0, *movie.overviewTagVector.map { it.toDouble() }.toDoubleArray())
+                    categoryMatrix.setRow(i, 0, *movie.categoryVector.map { it.toDouble() }.toDoubleArray())
+                }
+
+                // Batch Cosine Similarity: (Matrix * Vector) / (MatrixRowNorms)
+                val overviewScores = calculateBatchCosineSim(overviewMatrix, userOverviewTagVector)
+                val categoryScores = calculateBatchCosineSim(categoryMatrix, userCategoryVector)
+
+                /*
+                    Scores are in a vector row x 1, where each row is the similarity score for that type for that movie.
+                    Add both scores together in weight X:Y, based on how valuable each score is.
+                    For example, category scores may have higher weight as they have valuable information like genres or language.
+                 */
+                for (i in batch.indices) {
+                    //No need to normalize each cause cosine similarity already did it.
+                    val finalScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
+                    topScores.add(ScoreResult(batch[i].id, finalScore))
+                    //Only keep top X movies.
+                    if (topScores.size > numRecommendations) topScores.poll()
+                }
+
+                offset += pageSize
+            }
+
+            //Return top X movies.
+            return@withContext topScores.toList().sortedByDescending { it.score };
         }
-        return emptyFlow()
+        return recommendationList;
     }
 
     //Getter, check if model has been trained.
     fun IsTrained() : Boolean{
         return isTrained;
+    }
+
+
+
+    //=== Helpers ===//
+
+    //Writes to datastore a Set<String> representing unique words in the categorical strings
+    private suspend fun SaveCategoryUniqueWords(movies : List<MovieDetails>)
+    {
+        //Checks all category words and joins them into a set.
+        var uniqueWords = mutableSetOf<String>();
+        for(movie in movies)
+        {
+            uniqueWords.addAll(GetPreProcessedCategoryWords(movie));
+        }
+        CategoryWordsDatastore.saveSet(appContext, uniqueWords);
     }
 
     /*
@@ -218,22 +298,10 @@ class Recommender private constructor(context : Context){
         var currIdx = 0; //each element in the map corresponds to its own index in the vector.
         for(pair in mapCopy)
         {
-           categoryVector[currIdx++] = pair.value.toFloat();
+            categoryVector[currIdx++] = pair.value.toFloat();
         }
 
         return listOf(overviewTagVector, categoryVector);
-    }
-
-    //Writes to datastore a Set<String> representing unique words in the categorical strings
-    private suspend fun SaveCategoryUniqueWords(movies : List<MovieDetails>)
-    {
-        //Checks all category words and joins them into a set.
-        var uniqueWords = mutableSetOf<String>();
-        for(movie in movies)
-        {
-            uniqueWords.addAll(GetPreProcessedCategoryWords(movie));
-        }
-        CategoryWordsDatastore.saveSet(appContext, uniqueWords);
     }
 
     //Concatenates Overview, Tagline.
@@ -277,8 +345,62 @@ class Recommender private constructor(context : Context){
         return allTags;
     }
 
+    //Returns unnormalized weighted (TODO) average of user's watchlist movie feature vectors
+    private suspend fun CalculateUserPreferences(userWatchlist : List<MovieDetails>, recommenderDao : RecommenderDao) : List<SimpleMatrix?>
+    {
+        var overviewTagVectorSum : SimpleMatrix? = null;
+        var categoryVectorSum : SimpleMatrix? = null;
 
+        //Get vectors of user's preferences.
+        for(movie in userWatchlist)
+        {
+            val overviewTagVector : FloatArray?;
+            val categoryVector : FloatArray?;
+            //Get from database (existing movie vectors) if available, no need for recalculations.
+            if(recommenderDao.exists(movie.id))
+            {
+                val storedResult = recommenderDao.getMovieById(movie.id);
+                overviewTagVector = storedResult?.overviewTagVector?.toFloatArray();
+                categoryVector = storedResult?.categoryVector?.toFloatArray();
+            }
+            else
+            {
+                val calculatedResult = ComputeVectors(movie);
+                overviewTagVector = calculatedResult[0];
+                categoryVector = calculatedResult[1];
+            };
+            //Something went wrong, ignore movie.
+            if(overviewTagVector == null || categoryVector == null)
+            {
+                continue;
+            }
+            //Init or add to sum.
+            //TODO: Currently giving all user's movies equal weights. It should be weighted based off their ratings instead.
+            if(overviewTagVectorSum == null) overviewTagVectorSum = SimpleMatrix(overviewTagVector.size, 1, true, overviewTagVector);
+            else overviewTagVectorSum += SimpleMatrix(overviewTagVector.size, 1, true, overviewTagVector);
+            if(categoryVectorSum == null) categoryVectorSum = SimpleMatrix(categoryVector.size, 1, true, categoryVector);
+            else categoryVectorSum += SimpleMatrix(categoryVector.size, 1, true, categoryVector);
+        }
+        if(overviewTagVectorSum == null || categoryVectorSum == null) return listOf(null, null);
+        return listOf(overviewTagVectorSum, categoryVectorSum);
+    }
 
+    //Computes Matrix - Vector cosine similarity.
+    //Normalize the vector before passing it in.
+    private suspend fun calculateBatchCosineSim(matrix: SimpleMatrix, normUserVec: SimpleMatrix): DoubleArray {
+        // Matrix Multiplication: [Rows x Features] * [Features x 1] = [Rows x 1]
+        val dotProducts = matrix.mult(normUserVec)
+        //Each row represents the similarity score for that movie for that specific type.
+        val results = DoubleArray(matrix.numRows())
+
+        //Normalize the results for each row.
+        for (i in 0 until matrix.numRows()) {
+            val rowNorm = matrix.extractVector(true, i).normF()
+            //When normalizing avoid division by 0
+            results[i] = if (rowNorm.absoluteValue > 0.0001) dotProducts.get(i) / rowNorm else 0.0
+        }
+        return results
+    }
 
 
     class CategoryWordsDatastore {
@@ -297,6 +419,8 @@ class Recommender private constructor(context : Context){
         }
     }
 
+    //Keeps track of combined weighted similarity score for a movie.
+    data class ScoreResult(val movieId: Long, val score: Double)
 
     //Context of the current app, making it last as long as the recommender and its databases so it's safer than local context.
     private val appContext = context.applicationContext
@@ -304,6 +428,8 @@ class Recommender private constructor(context : Context){
     private val textEmbedder = TextEmbedder(appContext);
     //Used for count vectorization of categories. Need to turn it into a SORTED map.
     private var categoryWordsSet = setOf<String>();
+    //Indicates whether the model has been trained fully.
+    private var isTrained = false;
 
     companion object{
         //Weightage modifiers for vectorization of movie
@@ -312,8 +438,9 @@ class Recommender private constructor(context : Context){
         public var adultRepeat = 3;
         public var languageRepeat = 2;
 
-        //Indicates whether the model has been trained fully.
-        private var isTrained = false;
+        //Weightage modifiers for similarity scoring, i.e. how important X should be relative to Y.
+        public var categoryWeight = 0.7;
+        public var overviewTagWeight = 0.3;
 
         //Singleton pattern
         @Volatile

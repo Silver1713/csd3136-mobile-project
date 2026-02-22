@@ -56,8 +56,15 @@ interface RecommenderDao {
     @Query("DELETE FROM movie_features")
     suspend fun deleteAll()
 
+    @Query("SELECT EXISTS(SELECT 1 FROM movie_features WHERE id = :id)")
+    suspend fun exists(id: Long): Boolean
+
     @Query("SELECT * FROM movie_features WHERE id = :id")
     suspend fun getMovieById(id: Long): MovieEntity?
+
+    //Used for batch calculations.
+    @Query("SELECT * FROM movie_features LIMIT :limit OFFSET :offset")
+    suspend fun getMoviesPaged(limit: Int, offset: Int): List<MovieEntity>
 
     @Query("SELECT * FROM movie_features")
     fun getAllMovies(): Flow<List<MovieEntity>>

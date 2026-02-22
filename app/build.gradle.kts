@@ -76,7 +76,6 @@ dependencies {
    // implementation(libs.androidx.room.compiler)
    // implementation(libs.androidx.androidx.room.gradle.plugin)
     implementation ("androidx.compose.material:material-icons-extended")
-
     implementation(libs.androidx.navigation.compose)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -96,6 +95,8 @@ dependencies {
     implementation("com.google.mediapipe:tasks-text:0.10.29")
     //Datastore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    //Matrix library
+    implementation("org.ejml:ejml-simple:0.41")
 
 }
 
