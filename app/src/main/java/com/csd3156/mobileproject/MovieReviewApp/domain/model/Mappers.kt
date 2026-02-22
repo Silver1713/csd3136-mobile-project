@@ -10,6 +10,9 @@ fun MovieDetails.toMovie(): Movie {
         releaseDate = releaseDate,
         review = "",
         genres = genres.map { it.name },
-        watchTimeInSeconds = 0L
+        watchTimeInSeconds = 0L,
+        adult = adult,
+        voteCount = voteCount,
+        originalLanguage = originalLanguage
     )
 }

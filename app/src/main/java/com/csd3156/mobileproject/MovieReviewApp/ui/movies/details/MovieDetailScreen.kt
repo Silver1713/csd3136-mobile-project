@@ -305,14 +305,6 @@ private fun MovieDetailContent(
     isSaved: Boolean,
     onToggleWatchlist: () -> Unit
 ) {
-
-    //TODO: Delete
-    val localContext = LocalContext.current;
-    LaunchedEffect(true) {
-        Recommender.getInstance(localContext).TrainModel(listOf(movie));
-        Recommender.getInstance(localContext).GetRecommendations(listOf(movie), 50);
-    }
-    //TODO: Enddelete
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 32.dp)

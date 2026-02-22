@@ -81,18 +81,28 @@
 
 package com.csd3156.mobileproject.MovieReviewApp.recommender
 import android.content.Context
+import androidx.collection.emptyLongSet
 import androidx.compose.ui.platform.LocalContext
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.csd3156.mobileproject.MovieReviewApp.common.Resource
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.withContext
 import java.util.SortedMap
 import javax.inject.Singleton
@@ -116,7 +126,32 @@ class Recommender private constructor(context : Context){
 
     //Retrieves its own list of movies ~5000 and passes it to Train Model.
     suspend fun EasyTrainModel(){
+        val allMovies = mutableListOf<Movie>()
+        val totalTarget = 2000 //Small number so it doesn't crash the app due to ram issues.
+        val moviesPerPage = 20 // Fixed for TMDB
+        val pagesNeeded = totalTarget / moviesPerPage;
 
+        for (page in 1..pagesNeeded) {
+            movieRepository.discoverMovies(
+                page = page,
+                sortBy = "popularity.desc",
+                includeAdult = true
+            ).collect { resource ->
+                when (resource) {
+                    is Resource.Success -> {
+                        resource.data.let { allMovies.addAll(it) }
+                    }
+                    is Resource.Error -> {
+                        // Handle or log error
+                    }
+                    is Resource.Loading -> { /* No-op */ }
+                }
+            }
+
+            //Add a delay to prevent being rate limited, which happens at ~40 requests/s.
+            delay(20);
+        }
+        TrainModel(allMovies);
     }
 
     /*
@@ -124,7 +159,7 @@ class Recommender private constructor(context : Context){
         Pass in a list of movies, where list length is around 5-8k.
         Higher list lengths mean a longer training time.
      */
-    suspend fun TrainModel(movies : List<MovieDetails>) {
+    suspend fun TrainModel(movies : List<Movie>) {
 
         //Fool-proof, ensure cpu-heavy task doesn't block caller thread which may have called this on the wrong thread.
         withContext(Dispatchers.Default) {
@@ -135,7 +170,7 @@ class Recommender private constructor(context : Context){
             val recommenderDao = recommenderDatabase.recommenderDao()
             //Clean up all existing vectors, as they may not follow the same vector feature order.
             //Abit dangerous if the user closes the app halfway... use isTrained to indicate if model requires retraining.
-            isTrained = false; //Model is deleted so set to false.
+            isTrainedDatastore.setTrained(appContext, false); //Model is deleted so set to false.
             recommenderDao.deleteAll()
 
 
@@ -152,8 +187,8 @@ class Recommender private constructor(context : Context){
                         MovieEntity(
                             movie.id,
                             movie.rating,
-                            movie.voteCount,
-                            movie.popularity,
+                            movie.voteCount ?: 20,
+                            0.0,
                             overviewTagVector.toList(),
                             categoryVector.toList()
                         )
@@ -163,7 +198,7 @@ class Recommender private constructor(context : Context){
                 // Save the batch of 100 to the Database
                 recommenderDao.insertAll(movieEntityList)
             }
-            isTrained = true;
+            isTrainedDatastore.setTrained(appContext, true);
         }
     }
 
@@ -174,7 +209,7 @@ class Recommender private constructor(context : Context){
 
         Returns a list where
      */
-    suspend fun GetRecommendations(userWatchlist : List<MovieDetails>, numRecommendations : Int) : List<ScoreResult> {
+    suspend fun GetRecommendations(userWatchlist : List<Movie>, numRecommendations : Int) : List<ScoreResult> {
         if (userWatchlist.isEmpty()) return emptyList();
         //Prevent recommending what the user already watched.
         val watchlistIds = userWatchlist.map { it.id }.toSet()
@@ -237,7 +272,7 @@ class Recommender private constructor(context : Context){
                  */
                 for (i in batch.indices) {
                     //Don't recommend what the user has already watched.
-                    if(watchlistIds.contains(batch[i].id)) continue;
+                    //if(watchlistIds.contains(batch[i].id)) continue;
                     //No need to normalize each cause cosine similarity already did it.
                     val similarityScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
                     //Add weighted rating based on rating + vote count.
@@ -262,8 +297,8 @@ class Recommender private constructor(context : Context){
     }
 
     //Getter, check if model has been trained.
-    fun IsTrained() : Boolean{
-        return isTrained;
+    suspend fun IsTrained() : Boolean{
+        return isTrainedDatastore.getTrained(appContext);
     }
 
 
@@ -271,7 +306,7 @@ class Recommender private constructor(context : Context){
     //=== Helpers ===//
 
     //Writes to datastore a Set<String> representing unique words in the categorical strings
-    private suspend fun SaveCategoryUniqueWords(movies : List<MovieDetails>)
+    private suspend fun SaveCategoryUniqueWords(movies : List<Movie>)
     {
         //Checks all category words and joins them into a set.
         var uniqueWords = mutableSetOf<String>();
@@ -285,7 +320,7 @@ class Recommender private constructor(context : Context){
     /*
         Brief: Helper to compute a list of vectors based on movie features.
     */
-    private suspend fun ComputeVectors(movieDetails : MovieDetails) : List<FloatArray> {
+    private suspend fun ComputeVectors(movieDetails : Movie) : List<FloatArray> {
         /*
             Vector 1: Overview + Tagline using wordembedding or TF-IDF
             - Use pre-trained sentence embedders that are suitable for short paragraphs.
@@ -331,22 +366,21 @@ class Recommender private constructor(context : Context){
     //Concatenates Overview, Tagline.
     //Returns a string
     //Used: Overview, Tagline following weight 1:X specified in class variables.
-    private suspend fun GetPreProcessedOverviewTagWords(movieDetails: MovieDetails) : String
+    private suspend fun GetPreProcessedOverviewTagWords(movieDetails: Movie) : String
     {
         //Basic concatenation
         val overviewTaglineTags = mutableListOf<String>();
-        overviewTaglineTags.add(movieDetails.overview);
-        repeat(taglineRepeat) {overviewTaglineTags.add(movieDetails.tagline);}
+        overviewTaglineTags.add(movieDetails.overview ?: "MovieOverviewHere");
         return overviewTaglineTags.joinToString(" ").lowercase();
     }
 
     //Returns a list of important categorical information
     //Used: Genres, Original Language, Adult, Release Decade(one-hot-encoded), following the weights 1:X:Y:Z specified in class variables.
-    private suspend fun GetPreProcessedCategoryWords(movieDetails : MovieDetails) : List<String>
+    private suspend fun GetPreProcessedCategoryWords(movieDetails : Movie) : List<String>
     {
         //Basic concatenation
         //2026-01-02, take the decade
-        val year = movieDetails.releaseDate.split("-")[0].toInt()
+        val year = if(movieDetails.releaseDate.isNotEmpty()) movieDetails.releaseDate.split("-")[0].toInt() else 2020;
         //Code it into a string so it doesn't clash with any numbers that may be in other categories.
         val decadeString = when (year) {
             in 0..1929 -> "silentera"
@@ -357,11 +391,11 @@ class Recommender private constructor(context : Context){
             in 2010..2029 -> "digitalera"
             else -> "futureera"
         }
-        val adultString = if(movieDetails.adult) "adulttag" else "";
+        val adultString = if(movieDetails.adult ?: false) "adulttag" else "";
         val allTags = mutableListOf<String>();
-        for(genre in movieDetails.genres)
+        for(genre in movieDetails.genres!!)
         {
-            allTags.add(genre.name.replace(" ", "").lowercase());
+            allTags.add(genre.replace(" ", "").lowercase());
         }
         repeat(decadeRepeat) { allTags.add(decadeString.lowercase()) }
         repeat(adultRepeat) { if (adultString.isNotEmpty()) allTags.add(adultString.lowercase()) }
@@ -370,7 +404,7 @@ class Recommender private constructor(context : Context){
     }
 
     //Returns unnormalized weighted (TODO) average of user's watchlist movie feature vectors
-    private suspend fun CalculateUserPreferences(userWatchlist : List<MovieDetails>, recommenderDao : RecommenderDao) : List<SimpleMatrix?>
+    private suspend fun CalculateUserPreferences(userWatchlist : List<Movie>, recommenderDao : RecommenderDao) : List<SimpleMatrix?>
     {
         var overviewTagVectorSum : SimpleMatrix? = null;
         var categoryVectorSum : SimpleMatrix? = null;
@@ -443,6 +477,23 @@ class Recommender private constructor(context : Context){
         }
     }
 
+    //Saves "isTrained" variable.
+    class isTrainedDatastore {
+        companion object {
+            suspend fun setTrained(context: Context, isTrained : Boolean) {
+                context.dataStore.edit { prefs ->
+                    prefs[booleanPreferencesKey("is_trained")] = isTrained;
+                }
+            }
+
+            suspend fun getTrained(context: Context): Boolean {
+                return context.dataStore.data
+                    .map { prefs -> prefs[booleanPreferencesKey("is_trained")] ?: false }
+                    .first()
+            }
+        }
+    }
+
     //Keeps track of combined weighted similarity score for a movie.
     data class ScoreResult(val movieId: Long, val score: Double, val similarityScore: Double)
 
@@ -452,12 +503,12 @@ class Recommender private constructor(context : Context){
     private val textEmbedder = TextEmbedder(appContext);
     //Used for count vectorization of categories. Need to turn it into a SORTED map.
     private var categoryWordsSet = setOf<String>();
-    //Indicates whether the model has been trained fully.
-    private var isTrained = false;
 
+    //To get movie data for training.
+    private val movieRepository = MovieRepositoryImpl.create()
     companion object{
         //Weightage modifiers for vectorization of movie
-        public var taglineRepeat = 2;
+        public var taglineRepeat = 2; //Currently not in use due to tmdb api limitations unable to get full MovieDetails without hitting rate limit.
         public var decadeRepeat = 1;
         public var adultRepeat = 3;
         public var languageRepeat = 2;
@@ -465,7 +516,7 @@ class Recommender private constructor(context : Context){
         //Weightage modifiers for similarity scoring, i.e. how important X should be relative to Y.
         public var categoryWeight = 0.7;
         public var overviewTagWeight = 0.3;
-        public var numVotes = 500; //Used to give a weightage to the final score. Higher numbers penalize movies with lower vote counts.
+        public var numVotes = 30; //Used to give a weightage to the final score. Higher numbers heavily penalize movies with lower vote counts than it.
 
         //Singleton pattern
         @Volatile

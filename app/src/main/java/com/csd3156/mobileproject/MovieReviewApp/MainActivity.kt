@@ -43,17 +43,31 @@ import kotlinx.serialization.Serializable
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.Profile
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.ProfileScreen
 import androidx.compose.material.icons.filled.AccountCircle
+import com.csd3156.mobileproject.MovieReviewApp.recommender.Recommender
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.Watchlist
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistScreen
-
-
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import okhttp3.Dispatcher
 
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        //Run the recommender model training process
+        GlobalScope.launch (Dispatchers.Default){
+            //Only run if model isn't trained yet.
+            if(!Recommender.getInstance(applicationContext).IsTrained())
+            {
+                Recommender.getInstance(applicationContext).EasyTrainModel();
+            }
+        }
         enableEdgeToEdge()
         setContent {
             MovieReviewAppTheme(darkTheme = true) {
