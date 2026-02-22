@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -57,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.csd3156.mobileproject.MovieReviewApp.R
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
@@ -320,26 +322,25 @@ fun RowingMoviesContent(
     mod: Modifier = Modifier,
     onMovieClick: (Long) -> Unit
 ) {
+    val recommenderViewModel: RecommenderViewModel = viewModel(
+        factory = RecommenderViewModel.Factory
+    )
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
+    val recommendedMovies by recommenderViewModel.recommendedMovies.collectAsState()
 
     Column(
         modifier = mod
     ) {
-
-
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            itemsIndexed(if (movieType == MovieContentSection.MOVIE_REC){
-                uiState.moviesPopular
-            }else{
-                uiState.moviesTrending
-            }) {
+            if(movieType == MovieContentSection.MOVIE_REC && recommendedMovies.isNotEmpty())
+            {
+                itemsIndexed(recommendedMovies)
+                {
                     index, movie ->
-                when (movieType) {
-                    MovieContentSection.MOVIE_REC -> MovieCard(
+                    MovieCard(
                         index,
                         movie,
                         false,
@@ -347,20 +348,40 @@ fun RowingMoviesContent(
                         true,
                         false
                     ) { onMovieClick(movie.id) }
-
-                    MovieContentSection.MOVIE_TRENDING -> MovieCard(
-                        index,
-                        movie,
-                        true,
-                        true,
-                        false,
-                        true
-                    ) { onMovieClick(movie.id) }
-
-                    MovieContentSection.MOVIE_EXPLORE -> {}
-                    else -> {}
                 }
             }
+            //If cannot find recommendations yet.
+            else{
+                itemsIndexed(if (movieType == MovieContentSection.MOVIE_REC){
+                    uiState.moviesPopular
+                }else{
+                    uiState.moviesTrending
+                }) { index, movie ->
+                    when (movieType) {
+                        MovieContentSection.MOVIE_REC -> MovieCard(
+                            index,
+                            movie,
+                            false,
+                            true,
+                            true,
+                            false
+                        ) { onMovieClick(movie.id) }
+
+                        MovieContentSection.MOVIE_TRENDING -> MovieCard(
+                            index,
+                            movie,
+                            true,
+                            true,
+                            false,
+                            true
+                        ) { onMovieClick(movie.id) }
+
+                        MovieContentSection.MOVIE_EXPLORE -> {}
+                        else -> {}
+                    }
+                }
+            }
+
         }
     }
 

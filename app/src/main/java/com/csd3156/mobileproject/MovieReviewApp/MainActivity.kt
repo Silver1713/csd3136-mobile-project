@@ -43,9 +43,16 @@ import kotlinx.serialization.Serializable
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.Profile
 import com.csd3156.mobileproject.MovieReviewApp.ui.main.ProfileScreen
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.recommender.Recommender
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.Watchlist
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistScreen
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers

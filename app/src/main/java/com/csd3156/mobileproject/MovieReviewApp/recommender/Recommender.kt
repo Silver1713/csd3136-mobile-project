@@ -274,7 +274,7 @@ class Recommender private constructor(context : Context){
             userCategoryVector = userCategoryVector.divide(userCategoryVector.normF());
 
             //Pagination, calculate cosine similarity with batches of rows.
-            val pageSize = 50;
+            val pageSize = 75;
             var offset = 0;
             //Compute in batches of 50 or less at a time.
             while (true) {
@@ -300,7 +300,7 @@ class Recommender private constructor(context : Context){
                  */
                 for (i in batch.indices) {
                     //Don't recommend what the user has already watched.
-                    //if(watchlistIds.contains(batch[i].id)) continue;
+                    if(watchlistIds.contains(batch[i].id)) continue;
                     //No need to normalize each cause cosine similarity already did it.
                     val similarityScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
                     //Add weighted rating based on rating + vote count.
