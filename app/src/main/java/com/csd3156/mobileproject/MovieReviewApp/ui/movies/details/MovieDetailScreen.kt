@@ -96,9 +96,7 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.toMovie
-
-
-
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +110,8 @@ fun MovieDetailScreen(
     errorMessage: String?,
     onBack: () -> Unit,
     onSubmitReview: (author: String, rating: Double?, content: String, photoPath: String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    recommenderViewModel: RecommenderViewModel
 ) {
     var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
     var reviewerName by rememberSaveable { mutableStateOf("") }
@@ -196,7 +195,10 @@ fun MovieDetailScreen(
                     onBack = onBack,
                     onWriteReview = { shouldShowReviewDialog = true },
                     isSaved = isSaved,
-                    onToggleWatchlist = { watchlistVM.toggle(movie.toMovie(), isSaved) }
+                    onToggleWatchlist = {
+                        watchlistVM.toggle(movie.toMovie(), isSaved)
+                        recommenderViewModel.fetchData() //Refresh recommendations
+                    }
                 )
             }
 

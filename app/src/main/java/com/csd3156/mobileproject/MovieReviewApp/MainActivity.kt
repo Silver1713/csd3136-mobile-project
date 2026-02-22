@@ -100,12 +100,15 @@ class MainActivity : ComponentActivity() {
 fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modifier, startDestination: Any = Main) {
     val context = LocalContext.current
     val movieVM : MovieListViewModel = viewModel(factory = MovieListViewModel.provideFactory(context.applicationContext))
-
+    val recommenderViewModel: RecommenderViewModel = viewModel(
+        factory = RecommenderViewModel.Factory
+    )
     NavHost(navController = controller, startDestination = startDestination) {
         composable<Main>{
             HomeScreen(
                 viewmodel = movieVM,
-                modifier = modifier
+                modifier = modifier,
+                recommenderViewModel = recommenderViewModel
             ) { movieId ->
                 controller.navigate(MovieDetailsDestination(movieId))
             }
@@ -124,7 +127,8 @@ fun MovieReviewNavHost(controller: NavHostController ,modifier: Modifier = Modif
                 movieId = args.movieId,
                 modifier = modifier,
                 movieListViewModel = movieVM,
-                onBack = { controller.popBackStack() }
+                onBack = { controller.popBackStack() },
+                recommenderViewModel
             )
         }
 
@@ -154,7 +158,8 @@ fun MovieDetailRoute(
     movieId: Long,
     modifier: Modifier = Modifier,
     movieListViewModel: MovieListViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    recommenderViewModel : RecommenderViewModel
 ) {
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -179,7 +184,8 @@ fun MovieDetailRoute(
         onBack = onBack,
         onSubmitReview = { author, rating, content, photoPath ->
             movieListViewModel.addLocalReview(movieId, author, rating, content, photoPath)
-        }
+        },
+        recommenderViewModel = recommenderViewModel
     )
 }
 

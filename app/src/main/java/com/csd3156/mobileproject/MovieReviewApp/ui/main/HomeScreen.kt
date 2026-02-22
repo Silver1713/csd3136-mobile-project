@@ -80,7 +80,8 @@ enum class MovieContentSection {
 fun HomeScreen(
     viewmodel: MovieListViewModel,
     modifier: Modifier = Modifier,
-    onMovieClick: (Long) -> Unit
+    recommenderViewModel: RecommenderViewModel,
+    onMovieClick: (Long) -> Unit,
 ) {
     // Create HomeScreen ViewModel
     val homeVM: HomeScreenViewModel = viewModel(factory = HomeViewModelFactory())
@@ -149,7 +150,8 @@ fun HomeScreen(
                     viewmodel,
                     movieType = MovieContentSection.MOVIE_REC,
                     mod = Modifier.padding(0.dp),
-                    onMovieClick = onMovieClick
+                    onMovieClick = onMovieClick,
+                    recommenderViewModel
                 )
                 Sections(
                     "Trending Now",
@@ -163,7 +165,8 @@ fun HomeScreen(
                     viewmodel,
                     movieType = MovieContentSection.MOVIE_TRENDING,
                     mod = Modifier,
-                    onMovieClick = onMovieClick
+                    onMovieClick = onMovieClick,
+                    recommenderViewModel
                 )
                 Sections(
                     "Explore Genre",
@@ -320,11 +323,10 @@ fun RowingMoviesContent(
     movieListViewModel: MovieListViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
     mod: Modifier = Modifier,
-    onMovieClick: (Long) -> Unit
+    onMovieClick: (Long) -> Unit,
+    recommenderViewModel: RecommenderViewModel
 ) {
-    val recommenderViewModel: RecommenderViewModel = viewModel(
-        factory = RecommenderViewModel.Factory
-    )
+
     val uiState by movieListViewModel.uiState.collectAsStateWithLifecycle()
     val recommendedMovies by recommenderViewModel.recommendedMovies.collectAsState()
 

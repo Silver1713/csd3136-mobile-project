@@ -542,8 +542,8 @@ class Recommender private constructor(context : Context){
         public var languageRepeat = 2;
 
         //Weightage modifiers for similarity scoring, i.e. how important X should be relative to Y.
-        public var categoryWeight = 0.7;
-        public var overviewTagWeight = 0.3;
+        public var categoryWeight = 0.3;
+        public var overviewTagWeight = 0.7;
         public var numVotes = 30; //Used to give a weightage to the final score. Higher numbers heavily penalize movies with lower vote counts than it.
 
         //Singleton pattern
