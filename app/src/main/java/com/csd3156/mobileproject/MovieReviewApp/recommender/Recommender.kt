@@ -124,7 +124,11 @@ class Recommender private constructor(context : Context){
             //Used to store "trained" model.
             val recommenderDatabase = RecommenderDatabase.getDatabase(appContext)
             val recommenderDao = recommenderDatabase.recommenderDao()
-            recommenderDao.deleteAll() //Clean up all existing vectors, as they may not follow the same vector feature order.
+            //Clean up all existing vectors, as they may not follow the same vector feature order.
+            //Abit dangerous if the user closes the app halfway... use isTrained to indicate if model requires retraining.
+            isTrained = false; //Model is deleted so set to false.
+            recommenderDao.deleteAll()
+
 
             // Insert in batches of 100 to save RAM instead of all at once.
             //TODO: Multithreading, where each thread takes multiple movies? Need to be thread-safe.
@@ -150,6 +154,9 @@ class Recommender private constructor(context : Context){
                 // Save the batch of 100 to the Database
                 recommenderDao.insertAll(movieEntityList)
             }
+            isTrained = true;
+            val testMovie = recommenderDao.getMovieById(movies[0].id);
+            print(testMovie?.categoryVector);
         }
     }
 
@@ -164,6 +171,11 @@ class Recommender private constructor(context : Context){
 
         }
         return emptyFlow()
+    }
+
+    //Getter, check if model has been trained.
+    fun IsTrained() : Boolean{
+        return isTrained;
     }
 
     /*
@@ -190,7 +202,7 @@ class Recommender private constructor(context : Context){
         if(categoryWordsSet.isEmpty())
         {
             //Expensive operation, only do this once.
-            val categoryWordsSet = CategoryWordsDatastore.getSet(appContext);
+            categoryWordsSet = CategoryWordsDatastore.getSet(appContext);
         }
         //Sorted map to ensure vector always has the same structure (alphabetical order).
         val mapCopy = categoryWordsSet.associateWith{0}.toSortedMap();
@@ -299,6 +311,9 @@ class Recommender private constructor(context : Context){
         public var decadeRepeat = 1;
         public var adultRepeat = 3;
         public var languageRepeat = 2;
+
+        //Indicates whether the model has been trained fully.
+        private var isTrained = false;
 
         //Singleton pattern
         @Volatile

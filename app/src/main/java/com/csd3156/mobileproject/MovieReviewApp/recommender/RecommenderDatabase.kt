@@ -57,7 +57,7 @@ interface RecommenderDao {
     suspend fun deleteAll()
 
     @Query("SELECT * FROM movie_features WHERE id = :id")
-    suspend fun getMovieById(id: Int): MovieEntity?
+    suspend fun getMovieById(id: Long): MovieEntity?
 
     @Query("SELECT * FROM movie_features")
     fun getAllMovies(): Flow<List<MovieEntity>>
