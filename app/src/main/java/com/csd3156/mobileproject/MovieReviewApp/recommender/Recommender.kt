@@ -172,8 +172,19 @@ class Recommender private constructor(context : Context){
      */
     suspend fun GetRecommendations(userWatchlist : List<MovieDetails>, numRecommendations : Int) : List<ScoreResult> {
         if (userWatchlist.isEmpty()) return emptyList();
+        //Prevent recommending what the user already watched.
+        val watchlistIds = userWatchlist.map { it.id }.toSet()
+
+        //Database for movie features
         val recommenderDatabase = RecommenderDatabase.getDatabase(appContext);
         val recommenderDao = recommenderDatabase.recommenderDao();
+
+        //Ensure weights add to 1.
+        val weightSum = overviewTagWeight + categoryWeight;
+        overviewTagWeight = overviewTagWeight / weightSum;
+        categoryWeight = categoryWeight / weightSum;
+
+
         //Fool-proof, ensure cpu-heavy task doesn't block caller thread which may have called this on the wrong thread.
         val recommendationList = withContext(Dispatchers.Default) {
             /*
@@ -221,6 +232,8 @@ class Recommender private constructor(context : Context){
                     For example, category scores may have higher weight as they have valuable information like genres or language.
                  */
                 for (i in batch.indices) {
+                    //Don't recommend what the user has already watched.
+                    if(watchlistIds.contains(batch[i].id)) continue;
                     //No need to normalize each cause cosine similarity already did it.
                     val finalScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
                     topScores.add(ScoreResult(batch[i].id, finalScore))
