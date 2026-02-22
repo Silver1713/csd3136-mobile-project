@@ -3,6 +3,9 @@
     <files-path
         name="review_files"
         path="reviews/" />
+    <files-path
+        name="profile_files"
+        path="profiles/" />
     <cache-path
         name="review_images"
         path="reviews/" />

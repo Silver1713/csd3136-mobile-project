@@ -23,6 +23,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.ByteArrayOutputStream
+import java.io.File
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
@@ -213,6 +214,50 @@ class AccountRepository @Inject constructor(
         return result
     }
 
+    suspend fun updateAccountProfile(
+        fullName: String? = null,
+        bio: String? = null,
+        localPhotoPath: String? = null,
+        removePhoto: Boolean = false
+    ): RequestResult<Unit> {
+        val accountID: String = firebaseAuthService.GetActiveUserID()
+            ?: return RequestResult.Error("No active account", Exception("No active account"))
+        val tempLocalPath = localPhotoPath?.takeIf { it.isNotBlank() && !it.startsWith("http", ignoreCase = true) }
+        return try {
+            var nextProfileUrl: String? = null
+            if (removePhoto) {
+                profileStorageService.deleteImage(accountID)
+                // UpdateAccountDto only applies non-null fields, use blank to clear server field.
+                nextProfileUrl = ""
+            } else if (!localPhotoPath.isNullOrBlank()) {
+                val imageBytes = localToCompressJPEG(localPhotoPath)
+                    ?: throw Exception("Failed to process profile image")
+                when (val uploadResult = profileStorageService.uploadImage(accountID, imageBytes)) {
+                    is RequestResult.Success -> {
+                        nextProfileUrl = uploadResult.data
+                    }
+                    is RequestResult.Error -> {
+                        throw Exception(uploadResult.message ?: "Failed to upload profile image")
+                    }
+                }
+            }
+
+            val updated = changeAccountCredentials(
+                fullName = fullName,
+                bio = bio,
+                photoUrl = nextProfileUrl
+            )
+            if (!updated) {
+                throw Exception("Failed to update account")
+            }
+            RequestResult.Success(null, Unit)
+        } catch (e: Exception) {
+            RequestResult.Error(e.message, e)
+        } finally {
+            tempLocalPath?.let(::deleteLocalFileIfExists)
+        }
+    }
+
     private fun applyExifOrientation(path: String, bitmap: Bitmap): Bitmap {
         val matrix = Matrix()
         val orientation = runCatching {
@@ -246,7 +291,7 @@ class AccountRepository @Inject constructor(
 
     fun localToCompressJPEG(
         path: String?,
-        maxSizePx: Int = 1080,
+        maxSizePx: Int = 512,
         quality: Int = 80
     ): ByteArray? {
         val safePath = path ?: return null
@@ -283,6 +328,12 @@ class AccountRepository @Inject constructor(
         return bitmap.scale(scaleW, scaleH)
     }
 
+    private fun deleteLocalFileIfExists(path: String) {
+        runCatching {
+            val file = File(path)
+            if (file.exists()) file.delete()
+        }
+    }
 
 
 
