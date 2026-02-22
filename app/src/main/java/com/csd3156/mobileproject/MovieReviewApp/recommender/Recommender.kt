@@ -96,18 +96,25 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.csd3156.mobileproject.MovieReviewApp.common.Resource
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.SortedMap
 import javax.inject.Singleton
 import org.ejml.simple.SimpleMatrix
 import java.util.PriorityQueue
+import kotlin.collections.flatten
 import kotlin.collections.toDoubleArray
 import kotlin.math.absoluteValue
 
@@ -126,32 +133,53 @@ class Recommender private constructor(context : Context){
 
     //Retrieves its own list of movies ~5000 and passes it to Train Model.
     suspend fun EasyTrainModel(){
-        val allMovies = mutableListOf<Movie>()
-        val totalTarget = 2000 //Small number so it doesn't crash the app due to ram issues.
+        val totalTarget = 4000 //Small number so it doesn't crash the app due to ram issues.
         val moviesPerPage = 20 // Fixed for TMDB
         val pagesNeeded = totalTarget / moviesPerPage;
 
-        for (page in 1..pagesNeeded) {
+        //Limit concurrent rate requests
+        val semaphore = Semaphore(8)
+
+        val allMovies = coroutineScope {
+            // Create a list of Deferred tasks
+            //This speeds up network calls, which is the bulk of training time.
+            val deferredPages = (1..pagesNeeded).map { page ->
+                async {
+                    semaphore.withPermit {
+                        fetchPageWithRetry(page)
+                    }
+                }
+            }
+
+            // Wait for all requests to finish and get the results of all.
+            return@coroutineScope deferredPages.awaitAll().flatten()
+        }
+
+
+        TrainModel(allMovies);
+    }
+
+    // Helper to handle the retry logic for a single page
+    private suspend fun fetchPageWithRetry(page: Int): List<Movie> {
+        var retryCount = 0; //Prevents indefinite hanging if success isn't possible.
+        while (retryCount++ < 5) {
+            var result: List<Movie>? = null
+
             movieRepository.discoverMovies(
                 page = page,
                 sortBy = "popularity.desc",
                 includeAdult = true
             ).collect { resource ->
                 when (resource) {
-                    is Resource.Success -> {
-                        resource.data.let { allMovies.addAll(it) }
-                    }
-                    is Resource.Error -> {
-                        // Handle or log error
-                    }
+                    is Resource.Success -> result = resource.data
+                    is Resource.Error -> delay(100) //Rate limit, delay more.
                     is Resource.Loading -> { /* No-op */ }
                 }
             }
 
-            //Add a delay to prevent being rate limited, which happens at ~40 requests/s.
-            delay(20);
+            if (result != null) return result!!
         }
-        TrainModel(allMovies);
+        return emptyList();
     }
 
     /*
@@ -177,7 +205,7 @@ class Recommender private constructor(context : Context){
             // Insert in batches of 100 to save RAM instead of all at once.
             //TODO: Multithreading, where each thread takes multiple movies? Need to be thread-safe.
             //TODO: For multi-threading, categoryWordsMap needs to be thread-safe.
-            movies.chunked(100).forEach { movieBatch ->
+            movies.chunked(250).forEach { movieBatch ->
                 val movieEntityList = mutableListOf<MovieEntity>()
 
                 // 3. Process each movie one-by-one (Synchronous)

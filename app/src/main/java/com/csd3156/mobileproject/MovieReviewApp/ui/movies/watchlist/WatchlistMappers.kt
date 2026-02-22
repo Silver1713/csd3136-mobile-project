@@ -14,7 +14,7 @@ fun WatchlistMovie.toMovie(): Movie {
         genres = emptyList(),
         watchTimeInSeconds = 0L,
         adult = null,
-        originalLanguage = null,
+        originalLanguage = "",
         voteCount = null
     )
 }
