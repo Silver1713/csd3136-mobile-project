@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
-
     alias(libs.plugins.google.services)
 
 
@@ -19,13 +18,14 @@ android {
 
     defaultConfig {
         applicationId = "com.csd3156.mobileproject.MovieReviewApp"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
         // Added this filed to expose TMDB bearer token via BuildConfig.TMDB_API_TOKEN
         buildConfigField(
             "String",
@@ -99,14 +99,17 @@ dependencies {
     // Import Firebase BOM
     implementation(platform(libs.firebase.bom))
 
+    //Text embedding and vectorization
+    //Note: The latest release had issues with emulator, so just use this version.
+    implementation("com.google.mediapipe:tasks-text:0.10.29")
+    //Datastore
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    //Matrix library
+    implementation("org.ejml:ejml-simple:0.41")
     // Firebase products
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
-
-
-    //implementation("com.github.haifengl:smile-core:5.0.0")
-
 
 
 

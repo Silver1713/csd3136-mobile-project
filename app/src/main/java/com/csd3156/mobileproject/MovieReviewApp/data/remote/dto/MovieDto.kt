@@ -9,11 +9,14 @@ data class MovieDto(
     val id: Long,
     val title: String?,
     val overview: String?,
+    val adult: Boolean?,
     @Json(name = "poster_path") val posterPath: String?,
     @Json(name = "vote_average") val voteAverage: Double?,
     @Json(name = "release_date") val releaseDate: String?,
-    @Json(name = "genre_ids") val genreIds: List<Long> = emptyList()
-)
+    @Json(name = "genre_ids") val genreIds: List<Long> = emptyList(),
+    @Json(name = "original_language") val originalLanguage: String?,
+    @Json(name = "vote_count") val voteCount: Int?,
+    )
 
 fun MovieDto.toDomain(
     genres: List<String> = emptyList(),
@@ -28,5 +31,8 @@ fun MovieDto.toDomain(
     releaseDate = releaseDate.orEmpty(),
     review = review,
     genres = genres,
-    watchTimeInSeconds = watchTimeInSeconds
+    watchTimeInSeconds = watchTimeInSeconds,
+    originalLanguage = originalLanguage.orEmpty(),
+    adult = adult,
+    voteCount = voteCount
 )

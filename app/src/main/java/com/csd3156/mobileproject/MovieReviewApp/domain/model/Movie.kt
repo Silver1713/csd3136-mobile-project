@@ -6,13 +6,14 @@ data class Movie(
     val title: String?,
     val genres : List<String>?,
     val overview: String?,
-
     val posterUrl: String?,
     val rating: Double,
-    val releaseDate: String?,
+    val releaseDate: String,
     val review: String?,
     val watchTimeInSeconds : Long,
-
+    val originalLanguage: String,
+    val adult: Boolean?,
+    val voteCount: Int?
 ){
     fun getFormattedTime() : String{
         val hours = watchTimeInSeconds / 3600

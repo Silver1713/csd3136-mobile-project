@@ -12,6 +12,9 @@ fun WatchlistMovie.toMovie(): Movie {
         releaseDate = releaseDate,
         review = "",
         genres = listOf(firstGenres ?: "Unspecified"),
-        watchTimeInSeconds = 0L
+        watchTimeInSeconds = 0L,
+        adult = null,
+        originalLanguage = "",
+        voteCount = null
     )
 }

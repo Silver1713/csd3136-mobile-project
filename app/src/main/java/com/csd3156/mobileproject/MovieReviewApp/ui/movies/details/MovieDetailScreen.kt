@@ -58,6 +58,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +85,7 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
+import com.csd3156.mobileproject.MovieReviewApp.recommender.Recommender
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
@@ -103,6 +105,7 @@ import kotlinx.coroutines.launch
 
 
 
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,7 +123,9 @@ fun MovieDetailScreen(
     onSeeAllReviews: () -> Unit,
     combinedAverageRating: Double,
     combinedRatingCount: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    recommenderViewModel: RecommenderViewModel
+
 ) {
     var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -204,7 +209,10 @@ fun MovieDetailScreen(
                     onReviewClick = onReviewClick,
                     onSeeAllReviews = onSeeAllReviews,
                     isSaved = isSaved,
-                    onToggleWatchlist = { watchlistVM.toggle(movie.toMovie(), isSaved) }
+                    onToggleWatchlist = {
+                        watchlistVM.toggle(movie.toMovie(), isSaved)
+                        recommenderViewModel.fetchData() //Refresh recommendations
+                    }
                 )
             }
 
@@ -263,7 +271,7 @@ fun MovieDetailScreen(
 
     if (shouldShowReviewDialog) {
         WriteReviewDialog(
-            name = author?.username ?: reviewerName,
+            name = author?.name ?: reviewerName,
             onNameChange = { reviewerName = it },
             content = reviewContent,
             onContentChange = { reviewContent = it },

@@ -42,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.csd3156.mobileproject.MovieReviewApp.R
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
 import kotlinx.serialization.Serializable
@@ -82,6 +84,7 @@ enum class MovieContentSection {
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    recommenderViewModel: RecommenderViewModel,
     onMovieClick: (Long) -> Unit,
     onSearchSubmit: (String) -> Unit = {},
     onSectionSeeMore: (MovieContentSection) -> Unit = {},
@@ -162,7 +165,8 @@ fun HomeScreen(
                     homeVM,
                     movieType = MovieContentSection.MOVIE_REC,
                     mod = Modifier.padding(0.dp),
-                    onMovieClick = onMovieClick
+                    onMovieClick = onMovieClick,
+                    recommenderViewModel
                 )
                 HomeSectionHeader(
                     title = "Trending Now",
@@ -176,7 +180,8 @@ fun HomeScreen(
                     homeVM,
                     movieType = MovieContentSection.MOVIE_TRENDING,
                     mod = Modifier,
-                    onMovieClick = onMovieClick
+                    onMovieClick = onMovieClick,
+                    recommenderViewModel
                 )
                 HomeSectionHeader(
                     title = "Explore",
@@ -469,9 +474,11 @@ fun RowingMoviesContent(
     homeViewModel: HomeScreenViewModel,
     movieType: MovieContentSection = MovieContentSection.MOVIE_REC,
     mod: Modifier = Modifier,
-    onMovieClick: (Long) -> Unit
+    onMovieClick: (Long) -> Unit,
+    recommenderViewModel: RecommenderViewModel
 ) {
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+    val recommendedMovies by recommenderViewModel.recommendedMovies.collectAsState()
     val listState = rememberLazyListState()
 
     LaunchedEffect(
@@ -509,15 +516,12 @@ fun RowingMoviesContent(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            itemsIndexed(if (movieType == MovieContentSection.MOVIE_REC){
-                uiState.moviesPopular
-            }else{
-                uiState.moviesTrending
-            }) {
+            if(movieType == MovieContentSection.MOVIE_REC && recommendedMovies.isNotEmpty())
+            {
+                itemsIndexed(recommendedMovies)
+                {
                     index, movie ->
-                when (movieType) {
-                    MovieContentSection.MOVIE_REC -> MovieCard(
+                    MovieCard(
                         index,
                         movie,
                         false,
@@ -525,18 +529,37 @@ fun RowingMoviesContent(
                         true,
                         false
                     ) { onMovieClick(movie.id) }
+                }
+            }
+            //If cannot find recommendations yet.
+            else{
+                itemsIndexed(if (movieType == MovieContentSection.MOVIE_REC){
+                    uiState.moviesPopular
+                }else{
+                    uiState.moviesTrending
+                }) { index, movie ->
+                    when (movieType) {
+                        MovieContentSection.MOVIE_REC -> MovieCard(
+                            index,
+                            movie,
+                            false,
+                            true,
+                            true,
+                            false
+                        ) { onMovieClick(movie.id) }
 
-                    MovieContentSection.MOVIE_TRENDING -> MovieCard(
-                        index,
-                        movie,
-                        true,
-                        true,
-                        false,
-                        true
-                    ) { onMovieClick(movie.id) }
+                        MovieContentSection.MOVIE_TRENDING -> MovieCard(
+                            index,
+                            movie,
+                            true,
+                            true,
+                            false,
+                            true
+                        ) { onMovieClick(movie.id) }
 
-                    MovieContentSection.MOVIE_EXPLORE -> {}
-                    else -> {}
+                        MovieContentSection.MOVIE_EXPLORE -> {}
+                        else -> {}
+                    }
                 }
             }
 
@@ -558,6 +581,7 @@ fun RowingMoviesContent(
                     }
                 }
             }
+
         }
     }
 

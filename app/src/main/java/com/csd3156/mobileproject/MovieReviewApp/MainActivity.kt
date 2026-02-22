@@ -57,6 +57,14 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.login.AccountViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.login.accountScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.search.browseMovieViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
+import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.recommender.Recommender
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.Watchlist
 import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.reviewlist.ReviewList
@@ -67,14 +75,30 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.reviews.MovieReviewsScreen
 import com.csd3156.mobileproject.MovieReviewApp.ui.reviews.ReviewDetailsScreen
 
 
+import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import okhttp3.Dispatcher
 
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        //Run the recommender model training process
+        GlobalScope.launch (Dispatchers.Default){
+            //Only run if model isn't trained yet.
+            if(!Recommender.getInstance(applicationContext).IsTrained())
+            {
+                Recommender.getInstance(applicationContext).EasyTrainModel();
+            }
+        }
         enableEdgeToEdge()
         setContent {
             MovieReviewAppTheme(darkTheme = true) {
@@ -108,7 +132,9 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
     val accountVM : AccountViewModel = hiltViewModel()
     val searchQuery : MutableState<String?> = rememberSaveable { mutableStateOf(null) }
     val accountUiState by accountVM.uiState.collectAsStateWithLifecycle(null)
-
+    val recommenderViewModel: RecommenderViewModel = viewModel(
+        factory = RecommenderViewModel.Factory
+    )
     NavHost(navController = controller, startDestination = startDestination) {
         composable <AccountScreen>{
             accountScreen(
@@ -128,6 +154,7 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
         composable<Main>{
             HomeScreen(
                 modifier = modifier,
+                recommenderViewModel = recommenderViewModel,
                 onMovieClick = { movieId ->
                     controller.navigate(MovieDetailsDestination(movieId))
                 },
@@ -189,6 +216,7 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
                 modifier = modifier,
                 movieListViewModel = movieVM,
                 onBack = { controller.popBackStack() },
+                recommenderViewModel = recommenderViewModel,
                 onReviewClick = { review ->
                     controller.navigate(
                         ReviewDetailsDestination(
@@ -292,6 +320,7 @@ fun MovieDetailRoute(
     modifier: Modifier = Modifier,
     movieListViewModel: MovieListViewModel,
     onBack: () -> Unit,
+    recommenderViewModel : RecommenderViewModel
     onReviewClick: (MovieReview) -> Unit,
     onSeeAllReviews: () -> Unit
 ) {
@@ -331,7 +360,8 @@ fun MovieDetailRoute(
         onReviewClick = onReviewClick,
         onSeeAllReviews = onSeeAllReviews,
         combinedAverageRating = combinedAverageRating,
-        combinedRatingCount = combinedRatingCount
+        combinedRatingCount = combinedRatingCount,
+        recommenderViewModel = recommenderViewModel
     )
 }
 
