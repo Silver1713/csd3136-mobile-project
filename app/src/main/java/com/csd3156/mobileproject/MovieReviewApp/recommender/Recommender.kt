@@ -187,14 +187,13 @@ class Recommender private constructor(context : Context){
         val categoryList = GetPreProcessedCategoryWords(movieDetails);
         //Get the set of unique words from datastore, then form a map before running through the list.
         //If the map is already formed then reuse it.
-        if(categoryWordsMap.isEmpty())
+        if(categoryWordsSet.isEmpty())
         {
-            //More expensive than copying an existing map, so don't do this everytime.
-            val set = CategoryWordsDatastore.getSet(appContext);
-            categoryWordsMap = set.associateWith { 0 }.toSortedMap();
+            //Expensive operation, only do this once.
+            val categoryWordsSet = CategoryWordsDatastore.getSet(appContext);
         }
         //Sorted map to ensure vector always has the same structure (alphabetical order).
-        val mapCopy = categoryWordsMap;
+        val mapCopy = categoryWordsSet.associateWith{0}.toSortedMap();
         for(word in categoryList)
         {
             //Only increment, do not add any new words to the map to prevent different size vectors.
@@ -291,8 +290,8 @@ class Recommender private constructor(context : Context){
     private val appContext = context.applicationContext
     //Sentence Embedder for vectorization of movie summary paragraph.
     private val textEmbedder = TextEmbedder(appContext);
-    //Used for count vectorization of categories.
-    private var categoryWordsMap = sortedMapOf<String, Int>();
+    //Used for count vectorization of categories. Need to turn it into a SORTED map.
+    private var categoryWordsSet = setOf<String>();
 
     companion object{
         //Weightage modifiers for vectorization of movie
