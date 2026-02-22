@@ -113,6 +113,12 @@ Content-based filtering (since TMDB doesn't allow to see what users watched what
  - Lasts for entire lifetime of program.
  */
 class Recommender private constructor(context : Context){
+
+    //Retrieves its own list of movies ~5000 and passes it to Train Model.
+    suspend fun EasyTrainModel(){
+
+    }
+
     /*
         Brief: Trains the model on movie data. Must be called before using the recommender system.
         Pass in a list of movies, where list length is around 5-8k.
@@ -233,8 +239,15 @@ class Recommender private constructor(context : Context){
                     //Don't recommend what the user has already watched.
                     if(watchlistIds.contains(batch[i].id)) continue;
                     //No need to normalize each cause cosine similarity already did it.
-                    val finalScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
-                    topScores.add(ScoreResult(batch[i].id, finalScore))
+                    val similarityScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
+                    //Add weighted rating based on rating + vote count.
+                    val v = batch[i].voteCount
+                    val m = numVotes
+                    //range from [6-10]
+                    val weightedRating = (v * batch[i].rating + m * 6) / (v + m).toFloat()
+                    val finalScore = similarityScore * weightedRating
+
+                    topScores.add(ScoreResult(batch[i].id, finalScore, similarityScore))
                     //Only keep top X movies.
                     if (topScores.size > numRecommendations) topScores.poll()
                 }
@@ -431,7 +444,7 @@ class Recommender private constructor(context : Context){
     }
 
     //Keeps track of combined weighted similarity score for a movie.
-    data class ScoreResult(val movieId: Long, val score: Double)
+    data class ScoreResult(val movieId: Long, val score: Double, val similarityScore: Double)
 
     //Context of the current app, making it last as long as the recommender and its databases so it's safer than local context.
     private val appContext = context.applicationContext
@@ -452,6 +465,7 @@ class Recommender private constructor(context : Context){
         //Weightage modifiers for similarity scoring, i.e. how important X should be relative to Y.
         public var categoryWeight = 0.7;
         public var overviewTagWeight = 0.3;
+        public var numVotes = 500; //Used to give a weightage to the final score. Higher numbers penalize movies with lower vote counts.
 
         //Singleton pattern
         @Volatile
