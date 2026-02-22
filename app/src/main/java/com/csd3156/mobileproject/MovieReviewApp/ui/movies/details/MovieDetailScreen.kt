@@ -280,10 +280,9 @@ private fun MovieDetailContent(
 ) {
 
     //TODO: Delete
-    val appContext = LocalContext.current;
+    val localContext = LocalContext.current;
     LaunchedEffect(true) {
-        val recommender = Recommender(appContext);
-        recommender.TrainModel(listOf(movie));
+        Recommender.getInstance(localContext).TrainModel(listOf(movie));
     }
     //TODO: Enddelete
     LazyColumn(
