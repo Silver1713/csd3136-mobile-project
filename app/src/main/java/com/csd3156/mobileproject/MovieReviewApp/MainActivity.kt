@@ -221,7 +221,6 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
                 modifier = modifier,
                 movieListViewModel = movieVM,
                 onBack = { controller.popBackStack() },
-                recommenderViewModel = recommenderViewModel,
                 onReviewClick = { review ->
                     controller.navigate(
                         ReviewDetailsDestination(
@@ -325,7 +324,6 @@ fun MovieDetailRoute(
     modifier: Modifier = Modifier,
     movieListViewModel: MovieListViewModel,
     onBack: () -> Unit,
-    recommenderViewModel : RecommenderViewModel,
     onReviewClick: (MovieReview) -> Unit,
     onSeeAllReviews: () -> Unit
 ) {
@@ -365,8 +363,7 @@ fun MovieDetailRoute(
         onReviewClick = onReviewClick,
         onSeeAllReviews = onSeeAllReviews,
         combinedAverageRating = combinedAverageRating,
-        combinedRatingCount = combinedRatingCount,
-        recommenderViewModel = recommenderViewModel
+        combinedRatingCount = combinedRatingCount
     )
 }
 

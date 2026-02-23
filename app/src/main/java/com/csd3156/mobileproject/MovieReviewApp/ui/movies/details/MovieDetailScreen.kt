@@ -85,7 +85,6 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieReview
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieVideo
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.WatchProvider
-import com.csd3156.mobileproject.MovieReviewApp.recommender.Recommender
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.LoadImage
 import com.csd3156.mobileproject.MovieReviewApp.ui.components.Sections
 import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
@@ -103,11 +102,6 @@ import com.csd3156.mobileproject.MovieReviewApp.domain.model.toMovie
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
 import kotlinx.coroutines.launch
 
-
-
-import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderViewModel
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieDetailScreen(
@@ -123,8 +117,7 @@ fun MovieDetailScreen(
     onSeeAllReviews: () -> Unit,
     combinedAverageRating: Double,
     combinedRatingCount: Int,
-    modifier: Modifier = Modifier,
-    recommenderViewModel: RecommenderViewModel
+    modifier: Modifier = Modifier
 
 ) {
     var shouldShowReviewDialog by rememberSaveable { mutableStateOf(false) }
@@ -211,7 +204,6 @@ fun MovieDetailScreen(
                     isSaved = isSaved,
                     onToggleWatchlist = {
                         watchlistVM.toggle(movie.toMovie(), isSaved)
-                        recommenderViewModel.fetchData() //Refresh recommendations
                     }
                 )
             }
