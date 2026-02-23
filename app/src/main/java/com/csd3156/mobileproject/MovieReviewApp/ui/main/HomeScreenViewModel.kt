@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.csd3156.mobileproject.MovieReviewApp.common.Resource
 import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
+import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.AccountRepository
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
@@ -45,7 +46,8 @@ data class HomeScreenUIState(
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val movieRepo : MovieRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val watchlistRepository: WatchlistRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeScreenUIState())
@@ -73,6 +75,7 @@ class HomeScreenViewModel @Inject constructor(
     fun refreshAccount() {
         viewModelScope.launch {
             accountRepository.refreshActiveAccountRemote()
+            watchlistRepository.refreshWatchlist()
         }
     }
 

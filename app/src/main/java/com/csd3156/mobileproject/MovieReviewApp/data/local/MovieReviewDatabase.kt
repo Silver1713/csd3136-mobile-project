@@ -26,29 +26,4 @@ abstract class MovieReviewDatabase : RoomDatabase() {
     abstract fun accountDao() : AccountDAO
     abstract fun reviewDao(): ReviewDao
     abstract fun watchlistDao(): WatchlistDao
-
-    @Deprecated(
-        message = "Use Hilt instead",
-        ReplaceWith("@Hilt DatabaseModule")
-    )
-    companion object {
-        @Volatile
-        private var instance: MovieReviewDatabase? = null
-
-
-        fun getInstance(context: Context): MovieReviewDatabase {
-            return instance ?: synchronized(this) {
-                instance ?: buildDatabase(context.applicationContext).also { instance = it }
-            }
-        }
-
-
-        private fun buildDatabase(context: Context): MovieReviewDatabase {
-            return Room.databaseBuilder(
-                context.applicationContext,
-                MovieReviewDatabase::class.java,
-                "movie_reviews.db"
-            ).fallbackToDestructiveMigration(true).build()
-        }
-    }
 }
