@@ -75,20 +75,4 @@ interface RecommenderDao {
 abstract class RecommenderDatabase : RoomDatabase() {
     abstract fun recommenderDao(): RecommenderDao
 
-    companion object {
-        @Volatile
-        private var INSTANCE: RecommenderDatabase? = null
-
-        fun getDatabase(context: Context): RecommenderDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    RecommenderDatabase::class.java,
-                    "recommender_database"
-                ).build()
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
 }

@@ -83,20 +83,26 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
+import javax.inject.Inject
 
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var recommender: Recommender
+
     @OptIn(ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
 
         //Run the recommender model training process
         GlobalScope.launch (Dispatchers.Default){
             //Only run if model isn't trained yet.
-            if(!Recommender.getInstance(applicationContext).IsTrained())
+            if(!recommender.IsTrained())
             {
-                Recommender.getInstance(applicationContext).EasyTrainModel();
+                recommender.EasyTrainModel();
             }
         }
         enableEdgeToEdge()
@@ -132,9 +138,7 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
     val accountVM : AccountViewModel = hiltViewModel()
     val searchQuery : MutableState<String?> = rememberSaveable { mutableStateOf(null) }
     val accountUiState by accountVM.uiState.collectAsStateWithLifecycle(null)
-    val recommenderViewModel: RecommenderViewModel = viewModel(
-        factory = RecommenderViewModel.Factory
-    )
+    val recommenderViewModel: RecommenderViewModel = hiltViewModel()
     NavHost(navController = controller, startDestination = startDestination) {
         composable <AccountScreen>{
             accountScreen(
@@ -185,6 +189,7 @@ fun MovieReviewNavHost(rootVM: AppViewModel, controller: NavHostController ,modi
             val args = it.toRoute<MovieExtendedListDestination>()
             MovieExtendedListScreen(
                 sectionKey = args.section,
+                recommenderViewModel = recommenderViewModel,
                 onBack = { controller.popBackStack() },
                 onMovieClick = { movieId ->
                     controller.navigate(MovieDetailsDestination(movieId))
@@ -320,7 +325,7 @@ fun MovieDetailRoute(
     modifier: Modifier = Modifier,
     movieListViewModel: MovieListViewModel,
     onBack: () -> Unit,
-    recommenderViewModel : RecommenderViewModel
+    recommenderViewModel : RecommenderViewModel,
     onReviewClick: (MovieReview) -> Unit,
     onSeeAllReviews: () -> Unit
 ) {

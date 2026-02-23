@@ -8,7 +8,12 @@ import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder.TextEmbedderOptions
-class TextEmbedder (val context : Context) {
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+
+class TextEmbedder @Inject constructor(
+    @ApplicationContext private  val context : Context
+) {
     //Stores the text embedding model from google.
     private var textEmbedder : TextEmbedder;
     //Initializes the text embedding model.

@@ -94,8 +94,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.csd3156.mobileproject.MovieReviewApp.common.Resource
+import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
+import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -114,6 +117,7 @@ import java.util.SortedMap
 import javax.inject.Singleton
 import org.ejml.simple.SimpleMatrix
 import java.util.PriorityQueue
+import javax.inject.Inject
 import kotlin.collections.flatten
 import kotlin.collections.toDoubleArray
 import kotlin.math.absoluteValue
@@ -129,7 +133,34 @@ Content-based filtering (since TMDB doesn't allow to see what users watched what
  - Call TrainModel before usage
  - Lasts for entire lifetime of program.
  */
-class Recommender private constructor(context : Context){
+
+
+
+data class MLReccConfig(
+    //Weightage modifiers for vectorization of movie
+    var taglineRepeat : Int = 2, //Currently not in use due to tmdb api limitations unable to get full MovieDetails without hitting rate limit.
+    var decadeRepeat : Int = 1,
+    var adultRepeat : Int = 3,
+    var languageRepeat : Int = 2,
+    var categoryWeight : Double = 0.3, //Weightage modifiers for similarity scoring, i.e. how important X should be relative to Y.
+    var overviewTagWeight : Double = 0.7,
+    var numVotes : Int = 30 //Used to give a weightage to the final score. Higher numbers heavily penalize movies with lower vote counts than it.
+)
+class Recommender @Inject constructor(
+    @ApplicationContext private  val appContext : Context, //Context of the current app, making it last as long as the recommender and its databases so it's safer than local context.
+    private val textEmbedder: TextEmbedder, //Sentence Embedder for vectorization of movie
+    //To get movie data for training.
+    private val movieRepository : MovieRepository,
+    private val recommenderDao: RecommenderDao,
+    private val config : MLReccConfig
+)
+{
+    //Used for count vectorization of categories. Need to turn it into a SORTED map.
+    private var categoryWordsSet = setOf<String>();
+
+    //Keeps track of combined weighted similarity score for a movie.
+    data class ScoreResult(val movieId: Long, val score: Double, val similarityScore: Double)
+
 
     //Retrieves its own list of movies ~5000 and passes it to Train Model.
     suspend fun EasyTrainModel(){
@@ -194,8 +225,7 @@ class Recommender private constructor(context : Context){
             // Get and save all potential category unique words into a datastore for vectorizer to use.
             SaveCategoryUniqueWords(movies)
             //Used to store "trained" model.
-            val recommenderDatabase = RecommenderDatabase.getDatabase(appContext)
-            val recommenderDao = recommenderDatabase.recommenderDao()
+
             //Clean up all existing vectors, as they may not follow the same vector feature order.
             //Abit dangerous if the user closes the app halfway... use isTrained to indicate if model requires retraining.
             isTrainedDatastore.setTrained(appContext, false); //Model is deleted so set to false.
@@ -242,14 +272,12 @@ class Recommender private constructor(context : Context){
         //Prevent recommending what the user already watched.
         val watchlistIds = userWatchlist.map { it.id }.toSet()
 
-        //Database for movie features
-        val recommenderDatabase = RecommenderDatabase.getDatabase(appContext);
-        val recommenderDao = recommenderDatabase.recommenderDao();
+
 
         //Ensure weights add to 1.
-        val weightSum = overviewTagWeight + categoryWeight;
-        overviewTagWeight = overviewTagWeight / weightSum;
-        categoryWeight = categoryWeight / weightSum;
+        val weightSum = config.overviewTagWeight + config.categoryWeight;
+        config.overviewTagWeight /= weightSum;
+        config.categoryWeight /= weightSum;
 
 
         //Fool-proof, ensure cpu-heavy task doesn't block caller thread which may have called this on the wrong thread.
@@ -302,10 +330,10 @@ class Recommender private constructor(context : Context){
                     //Don't recommend what the user has already watched.
                     if(watchlistIds.contains(batch[i].id)) continue;
                     //No need to normalize each cause cosine similarity already did it.
-                    val similarityScore = (overviewScores[i] * overviewTagWeight) + (categoryScores[i] * categoryWeight);
+                    val similarityScore = (overviewScores[i] * config.overviewTagWeight) + (categoryScores[i] * config.categoryWeight);
                     //Add weighted rating based on rating + vote count.
                     val v = batch[i].voteCount
-                    val m = numVotes
+                    val m = config.numVotes
                     //range from [6-10]
                     val weightedRating = (v * batch[i].rating + m * 6) / (v + m).toFloat()
                     val finalScore = similarityScore * weightedRating
@@ -425,9 +453,9 @@ class Recommender private constructor(context : Context){
         {
             allTags.add(genre.replace(" ", "").lowercase());
         }
-        repeat(decadeRepeat) { allTags.add(decadeString.lowercase()) }
-        repeat(adultRepeat) { if (adultString.isNotEmpty()) allTags.add(adultString.lowercase()) }
-        repeat(languageRepeat) { allTags.add(movieDetails.originalLanguage.replace(" ", "").lowercase()) }
+        repeat(config.decadeRepeat) { allTags.add(decadeString.lowercase()) }
+        repeat(config.adultRepeat) { if (adultString.isNotEmpty()) allTags.add(adultString.lowercase()) }
+        repeat(config.languageRepeat) { allTags.add(movieDetails.originalLanguage.replace(" ", "").lowercase()) }
         return allTags;
     }
 
@@ -522,42 +550,8 @@ class Recommender private constructor(context : Context){
         }
     }
 
-    //Keeps track of combined weighted similarity score for a movie.
-    data class ScoreResult(val movieId: Long, val score: Double, val similarityScore: Double)
 
-    //Context of the current app, making it last as long as the recommender and its databases so it's safer than local context.
-    private val appContext = context.applicationContext
-    //Sentence Embedder for vectorization of movie summary paragraph.
-    private val textEmbedder = TextEmbedder(appContext);
-    //Used for count vectorization of categories. Need to turn it into a SORTED map.
-    private var categoryWordsSet = setOf<String>();
 
-    //To get movie data for training.
-    private val movieRepository = MovieRepositoryImpl.create()
-    companion object{
-        //Weightage modifiers for vectorization of movie
-        public var taglineRepeat = 2; //Currently not in use due to tmdb api limitations unable to get full MovieDetails without hitting rate limit.
-        public var decadeRepeat = 1;
-        public var adultRepeat = 3;
-        public var languageRepeat = 2;
 
-        //Weightage modifiers for similarity scoring, i.e. how important X should be relative to Y.
-        public var categoryWeight = 0.3;
-        public var overviewTagWeight = 0.7;
-        public var numVotes = 30; //Used to give a weightage to the final score. Higher numbers heavily penalize movies with lower vote counts than it.
 
-        //Singleton pattern
-        @Volatile
-        private var INSTANCE: Recommender? = null
-
-        fun getInstance(context: Context): Recommender {
-            //Return existing instance, or create a new one if it doesn't exist
-            //Only one instance will be created for the entire program.
-            return INSTANCE ?: synchronized(this) {
-                val instance = Recommender(context)
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
 }

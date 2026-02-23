@@ -42,7 +42,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,6 +75,7 @@ data object Main
 
 enum class MovieContentSection {
     MOVIE_REC,
+    MOVIE_RECOMMENDED,
     MOVIE_EXPLORE,
     MOVIE_TRENDING
 }
@@ -179,6 +179,21 @@ fun HomeScreen(
                 RowingMoviesContent(
                     homeVM,
                     movieType = MovieContentSection.MOVIE_TRENDING,
+                    mod = Modifier,
+                    onMovieClick = onMovieClick,
+                    recommenderViewModel
+                )
+                HomeSectionHeader(
+                    title = "Recommended",
+                    modifier = Modifier.padding(
+                        top = 16.dp, bottom = 8.dp,
+                        start = 16.dp, end = 16.dp
+                    ),
+                    onSeeMore = { onSectionSeeMore(MovieContentSection.MOVIE_RECOMMENDED) }
+                )
+                RowingMoviesContent(
+                    homeVM,
+                    movieType = MovieContentSection.MOVIE_RECOMMENDED,
                     mod = Modifier,
                     onMovieClick = onMovieClick,
                     recommenderViewModel
@@ -478,7 +493,10 @@ fun RowingMoviesContent(
     recommenderViewModel: RecommenderViewModel
 ) {
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-    val recommendedMovies by recommenderViewModel.recommendedMovies.collectAsState()
+    val recommendedMovies by recommenderViewModel.recommendedMovies.collectAsStateWithLifecycle()
+    val isFetchingRecommendations by recommenderViewModel.isFetchingRecommendations.collectAsStateWithLifecycle()
+    val isLoadingRecommendedMore by recommenderViewModel.isLoadingMoreRecommendations.collectAsStateWithLifecycle()
+    val recommendedEndReached by recommenderViewModel.recommendationsEndReached.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     LaunchedEffect(
@@ -486,10 +504,14 @@ fun RowingMoviesContent(
         movieType,
         uiState.moviesPopular.size,
         uiState.moviesTrending.size,
+        recommendedMovies.size,
         uiState.isLoadingPopularMore,
         uiState.isLoadingTrendingMore,
+        isFetchingRecommendations,
+        isLoadingRecommendedMore,
         uiState.popularEndReached,
-        uiState.trendingEndReached
+        uiState.trendingEndReached,
+        recommendedEndReached
     ) {
         snapshotFlow { listState.layoutInfo }
             .collect { layoutInfo ->
@@ -501,27 +523,37 @@ fun RowingMoviesContent(
                 when (movieType) {
                     MovieContentSection.MOVIE_REC -> homeViewModel.loadNextPopular()
                     MovieContentSection.MOVIE_TRENDING -> homeViewModel.loadNextTrending()
-                    else -> Unit
+                    MovieContentSection.MOVIE_RECOMMENDED -> recommenderViewModel.loadNextRecommendationsPage()
+                    MovieContentSection.MOVIE_EXPLORE -> Unit
                 }
             }
+    }
+
+    val moviesToDisplay = when (movieType) {
+        MovieContentSection.MOVIE_REC -> uiState.moviesPopular
+        MovieContentSection.MOVIE_TRENDING -> uiState.moviesTrending
+        MovieContentSection.MOVIE_RECOMMENDED -> recommendedMovies
+        MovieContentSection.MOVIE_EXPLORE -> emptyList()
+    }
+
+    val isLoadingMore = when (movieType) {
+        MovieContentSection.MOVIE_REC -> uiState.isLoadingPopularMore
+        MovieContentSection.MOVIE_TRENDING -> uiState.isLoadingTrendingMore
+        MovieContentSection.MOVIE_RECOMMENDED -> isFetchingRecommendations || isLoadingRecommendedMore
+        MovieContentSection.MOVIE_EXPLORE -> false
     }
 
     Column(
         modifier = mod
     ) {
-
-
         LazyRow(
             state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if(movieType == MovieContentSection.MOVIE_REC && recommendedMovies.isNotEmpty())
-            {
-                itemsIndexed(recommendedMovies)
-                {
-                    index, movie ->
-                    MovieCard(
+            itemsIndexed(moviesToDisplay) { index, movie ->
+                when (movieType) {
+                    MovieContentSection.MOVIE_REC -> MovieCard(
                         index,
                         movie,
                         false,
@@ -529,44 +561,49 @@ fun RowingMoviesContent(
                         true,
                         false
                     ) { onMovieClick(movie.id) }
+
+                    MovieContentSection.MOVIE_TRENDING -> MovieCard(
+                        index,
+                        movie,
+                        true,
+                        true,
+                        false,
+                        true
+                    ) { onMovieClick(movie.id) }
+
+                    MovieContentSection.MOVIE_RECOMMENDED -> MovieCard(
+                        index,
+                        movie,
+                        false,
+                        true,
+                        true,
+                        false
+                    ) { onMovieClick(movie.id) }
+
+                    MovieContentSection.MOVIE_EXPLORE -> Unit
                 }
             }
-            //If cannot find recommendations yet.
-            else{
-                itemsIndexed(if (movieType == MovieContentSection.MOVIE_REC){
-                    uiState.moviesPopular
-                }else{
-                    uiState.moviesTrending
-                }) { index, movie ->
-                    when (movieType) {
-                        MovieContentSection.MOVIE_REC -> MovieCard(
-                            index,
-                            movie,
-                            false,
-                            true,
-                            true,
-                            false
-                        ) { onMovieClick(movie.id) }
 
-                        MovieContentSection.MOVIE_TRENDING -> MovieCard(
-                            index,
-                            movie,
-                            true,
-                            true,
-                            false,
-                            true
-                        ) { onMovieClick(movie.id) }
-
-                        MovieContentSection.MOVIE_EXPLORE -> {}
-                        else -> {}
+            if (
+                movieType == MovieContentSection.MOVIE_RECOMMENDED &&
+                !isLoadingMore &&
+                moviesToDisplay.isEmpty()
+            ) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .height(220.dp)
+                            .width(220.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Add movies to your watchlist to get recommendations.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
-            }
-
-            val isLoadingMore = when (movieType) {
-                MovieContentSection.MOVIE_REC -> uiState.isLoadingPopularMore
-                MovieContentSection.MOVIE_TRENDING -> uiState.isLoadingTrendingMore
-                MovieContentSection.MOVIE_EXPLORE -> false
             }
 
             if (isLoadingMore) {
@@ -581,10 +618,8 @@ fun RowingMoviesContent(
                     }
                 }
             }
-
         }
     }
-
 }
 
 @Composable

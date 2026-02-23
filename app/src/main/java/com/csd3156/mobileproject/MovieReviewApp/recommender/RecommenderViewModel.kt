@@ -1,40 +1,22 @@
 package com.csd3156.mobileproject.MovieReviewApp.recommender
 
-import android.R.attr.resource
-import android.content.Context
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
 import com.csd3156.mobileproject.MovieReviewApp.common.Resource
-import com.csd3156.mobileproject.MovieReviewApp.data.local.LocalReviewRepositoryImpl
-import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
-import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistMovie
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistRepository
-import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.TmdbApiService
-import com.csd3156.mobileproject.MovieReviewApp.data.remote.dto.toDomain
-import com.csd3156.mobileproject.MovieReviewApp.data.repository.MovieRepositoryImpl
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.Movie
-import com.csd3156.mobileproject.MovieReviewApp.domain.model.MovieDetails
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.toMovie
-import com.csd3156.mobileproject.MovieReviewApp.domain.repository.LocalReviewRepository
 import com.csd3156.mobileproject.MovieReviewApp.domain.repository.MovieRepository
-import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModel
-import com.csd3156.mobileproject.MovieReviewApp.ui.movies.list.MovieListViewModelFactory
+import dagger.hilt.android.lifecycle.HiltViewModel
+import jakarta.inject.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapConcat
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.min
 
 /*
 
@@ -43,80 +25,124 @@ val db = remember { MovieReviewDatabase.getInstance(context) }
 
  */
 
-class RecommenderViewModel(
-    private val applicationContext: Context,
+@HiltViewModel
+class RecommenderViewModel  @Inject constructor(
+    private val reccomender : Recommender,
     private val watchlistRepository: WatchlistRepository,
     private val movieRepository : MovieRepository
 )  : ViewModel() {
-    //Recommended movie data as stateflow
-    private val _recommendedMovies = MutableStateFlow<List<Movie>>(emptyList())
+    companion object {
+        private const val MAX_RECOMMENDATIONS = 60
+        private const val RECOMMENDATION_PAGE_SIZE = 12
+    }
 
-    // Readonly version
+    // Recommended movie data as stateflow.
+    private val _recommendedMovies = MutableStateFlow<List<Movie>>(emptyList())
     val recommendedMovies: StateFlow<List<Movie>> = _recommendedMovies.asStateFlow()
 
-    init {  //Get the recommended movie list.
+    private val _isFetchingRecommendations = MutableStateFlow(false)
+    val isFetchingRecommendations: StateFlow<Boolean> = _isFetchingRecommendations.asStateFlow()
+
+    private val _isLoadingMoreRecommendations = MutableStateFlow(false)
+    val isLoadingMoreRecommendations: StateFlow<Boolean> = _isLoadingMoreRecommendations.asStateFlow()
+
+    private val _recommendationsEndReached = MutableStateFlow(false)
+    val recommendationsEndReached: StateFlow<Boolean> = _recommendationsEndReached.asStateFlow()
+
+    private val _allRecommendationMovieIds = MutableStateFlow<List<Long>>(emptyList())
+    private var nextRecommendationIndex = 0
+
+    init {
         fetchData()
     }
 
     fun fetchData() {
+        if (_isFetchingRecommendations.value) return
         viewModelScope.launch {
-            //Turn watchlistmovie into movie ids
-            var userWatchListID = watchlistRepository.getAllWatchlist()
-                .first()
-                .map { it.movieId }
+            _isFetchingRecommendations.value = true
+            try {
+                val userWatchlistIds = watchlistRepository.getAllWatchlist()
+                    .first()
+                    .map { it.movieId }
 
-            //Turn IDs into movies
-            var userWatchlist = mutableListOf<Movie>();
-            userWatchListID.asFlow()
-                .flatMapConcat { movieId ->
-                    movieRepository.getMovieDetails(movieId)
-                }
-                .collect { resource ->
-                    when (resource) {
-                        is Resource.Loading -> {}
-                        is Resource.Success -> userWatchlist.add(resource.data.toMovie())
-                        is Resource.Error   -> {}
+                val userWatchlist = mutableListOf<Movie>()
+                for (movieId in userWatchlistIds) {
+                    val movie = fetchMovieById(movieId)
+                    if (movie != null) {
+                        userWatchlist.add(movie)
                     }
                 }
 
-            //Use recommender model.
-            withContext(Dispatchers.Default){
-                val results = Recommender.getInstance(applicationContext.applicationContext).GetRecommendations(userWatchlist, 50);
-                var recommendedMovieList = mutableListOf<Movie>();
-                results.asFlow()
-                    .flatMapConcat { scoreResult ->
-                        movieRepository.getMovieDetails(scoreResult.movieId)
+                val recommendationMovieIds = withContext(Dispatchers.Default) {
+                    reccomender.GetRecommendations(userWatchlist, MAX_RECOMMENDATIONS)
+                        .map { it.movieId }
+                }
+
+                _allRecommendationMovieIds.value = recommendationMovieIds
+                _recommendedMovies.value = emptyList()
+                nextRecommendationIndex = 0
+                _recommendationsEndReached.value = recommendationMovieIds.isEmpty()
+            } catch (_: Exception) {
+                _allRecommendationMovieIds.value = emptyList()
+                _recommendedMovies.value = emptyList()
+                nextRecommendationIndex = 0
+                _recommendationsEndReached.value = true
+            } finally {
+                _isFetchingRecommendations.value = false
+            }
+
+            loadNextRecommendationsPage()
+        }
+    }
+
+    fun loadNextRecommendationsPage() {
+        if (_isFetchingRecommendations.value || _isLoadingMoreRecommendations.value || _recommendationsEndReached.value) {
+            return
+        }
+        viewModelScope.launch {
+            val allRecommendationIds = _allRecommendationMovieIds.value
+            if (nextRecommendationIndex >= allRecommendationIds.size) {
+                _recommendationsEndReached.value = true
+                return@launch
+            }
+
+            _isLoadingMoreRecommendations.value = true
+            try {
+                val endExclusive = min(nextRecommendationIndex + RECOMMENDATION_PAGE_SIZE, allRecommendationIds.size)
+                val pageMovieIds = allRecommendationIds.subList(nextRecommendationIndex, endExclusive)
+                nextRecommendationIndex = endExclusive
+
+                val pageMovies = mutableListOf<Movie>()
+                for (movieId in pageMovieIds) {
+                    val movie = fetchMovieById(movieId)
+                    if (movie != null) {
+                        pageMovies.add(movie)
                     }
-                    .collect { resource ->
-                        when (resource) {
-                            is Resource.Loading -> {}
-                            is Resource.Success -> recommendedMovieList.add(resource.data.toMovie())
-                            is Resource.Error   -> {}
-                        }
-                    }
-                _recommendedMovies.value = recommendedMovieList;
+                }
+
+                val existingIds = _recommendedMovies.value.map { it.id }.toHashSet()
+                val uniqueIncoming = pageMovies.filterNot { it.id in existingIds }
+                _recommendedMovies.value = _recommendedMovies.value + uniqueIncoming
+                _recommendationsEndReached.value = nextRecommendationIndex >= allRecommendationIds.size
+            } finally {
+                _isLoadingMoreRecommendations.value = false
             }
         }
     }
 
-    companion object {
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-                // Get the Application context from extras
-                val application = checkNotNull(extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY])
-
-                // Initialize dependencies
-                val movieRepository = MovieRepositoryImpl.create()
-                val db = MovieReviewDatabase.getInstance(application)
-                val watchListRepository = WatchlistRepository(db.watchlistDao())
-
-                return RecommenderViewModel(
-                    application,
-                    watchListRepository,
-                    movieRepository
-                ) as T
+    private suspend fun fetchMovieById(movieId: Long): Movie? {
+        return try {
+            when (
+                val resource = movieRepository.getMovieDetails(movieId)
+                    .first { it is Resource.Success || it is Resource.Error }
+            ) {
+                is Resource.Success -> resource.data.toMovie()
+                is Resource.Error -> null
+                is Resource.Loading -> null
             }
+        } catch (_: Exception) {
+            null
         }
     }
+
 }

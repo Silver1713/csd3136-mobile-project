@@ -6,6 +6,8 @@ import com.csd3156.mobileproject.MovieReviewApp.data.local.MovieReviewDatabase
 import com.csd3156.mobileproject.MovieReviewApp.data.local.ReviewDao
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.AccountDAO
 import com.csd3156.mobileproject.MovieReviewApp.data.local.database.watchlist.WatchlistDao
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderDao
+import com.csd3156.mobileproject.MovieReviewApp.recommender.RecommenderDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,5 +41,21 @@ object DatabaseModule {
     fun provideWatchlistDao(database: MovieReviewDatabase): WatchlistDao {
         return database.watchlistDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideReccomenderDatabase(app : Application) : RecommenderDatabase {
+        return Room.databaseBuilder(
+                app,
+                RecommenderDatabase::class.java,
+                "recommender_database"
+            ).build()
+    }
+
+    @Provides
+    fun provideRecommenderDao(database: RecommenderDatabase): RecommenderDao {
+        return database.recommenderDao()
+    }
 }
+
 

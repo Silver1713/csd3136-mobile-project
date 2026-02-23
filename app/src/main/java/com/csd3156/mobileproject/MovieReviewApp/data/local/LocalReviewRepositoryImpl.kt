@@ -59,18 +59,4 @@ class LocalReviewRepositoryImpl @Inject constructor(
             photoPath = photoPath
         )
     }
-
-    @Deprecated(
-        message = "Legacy constructor, use Hilt instead"
-    )
-    companion object {
-        @Deprecated(
-            message = "Legacy constructor, use Hilt injection instead"
-        )
-        fun create(context: Context): LocalReviewRepositoryImpl {
-            val database = MovieReviewDatabase.getInstance(context)
-            return LocalReviewRepositoryImpl(database.reviewDao(),
-                Dispatchers.IO)
-        }
-    }
 }
