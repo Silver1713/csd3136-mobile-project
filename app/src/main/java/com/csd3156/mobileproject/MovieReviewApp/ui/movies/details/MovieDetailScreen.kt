@@ -138,11 +138,13 @@ fun MovieDetailScreen(
 
 
     val cameraPermissions = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
+//        } else {
+//            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_EXTERNAL_STORAGE)
+//        }
+
+        arrayOf(Manifest.permission.CAMERA)
     }
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         movieVM.handleTakePictureResult(success)
@@ -884,20 +886,12 @@ private fun ReviewActions(onWriteReview: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         QuickActionCard(
-            title = "Write Review",
+            title = "Add Review",
             subtitle = "Share your thoughts",
             icon = Icons.Rounded.Edit,
             modifier = Modifier.weight(1f),
             containerColor = MaterialTheme.colorScheme.surface,
             onClick = onWriteReview
-        )
-        QuickActionCard(
-            title = "Voice Note",
-            subtitle = "Record audio review",
-            icon = Icons.Rounded.MicNone,
-            modifier = Modifier.weight(1f),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         )
     }
 }
