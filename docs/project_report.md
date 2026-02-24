@@ -17,8 +17,8 @@
 ### Project Links
 
 **Github Project Link** : <https://github.com/Silver1713/csd3136-mobile-project>
-**Application Demo Link**: <https://your_link_here>
-**Video Presentation Link**: <https://your_link_here>
+**Application Demo Link**: <https://youtu.be/WMT8n4vq6R8>
+**Video Presentation Link**: <https://youtu.be/3kqJ4bwP3X8>
 
 
 ### Project Goal

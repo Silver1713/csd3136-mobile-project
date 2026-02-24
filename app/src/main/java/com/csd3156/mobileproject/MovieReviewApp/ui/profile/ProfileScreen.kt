@@ -88,7 +88,7 @@ fun ProfileScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = onEditClick) {
+                IconButton(onClick = onAccountSettings) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit")
                 }
             }

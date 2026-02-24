@@ -97,9 +97,9 @@ fun AccountSettingsScreen(
 
     val cameraPermissions = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
+            arrayOf(Manifest.permission.CAMERA)
         } else {
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.READ_EXTERNAL_STORAGE)
+            arrayOf(Manifest.permission.CAMERA)
         }
     }
     var pendingCropOutputPath by remember { mutableStateOf<String?>(null) }
