@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,7 +35,6 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.MicNone
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
@@ -58,8 +56,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -101,6 +99,8 @@ import com.csd3156.mobileproject.MovieReviewApp.ui.watchlist.WatchlistViewModel
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.toMovie
 import com.csd3156.mobileproject.MovieReviewApp.data.remote.api.RequestResult
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,7 +126,7 @@ fun MovieDetailScreen(
     val author by movieVM.currentAccount.collectAsState(null)
     var reviewerName by rememberSaveable { mutableStateOf("") }
     var reviewContent by rememberSaveable { mutableStateOf("") }
-    var reviewRating by rememberSaveable { mutableStateOf(6f) }
+    var reviewRating by rememberSaveable { mutableFloatStateOf(6f) }
     val context = LocalContext.current
     val reviewPhotoPath = detailUiState.reviewPhotoPath
 
@@ -306,8 +306,7 @@ fun MovieDetailScreen(
                         shouldShowReviewDialog = false
                     }
                 }
-            }
-            ,
+            },
             isSubmitting = detailUiState.isSubmittingReview,
             submitError = detailUiState.reviewSubmitError
         )
@@ -495,7 +494,7 @@ private fun MovieHeroSection(movie: MovieDetails, onBack: () -> Unit) {
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = String.format("%.1f", movie.rating),
+                    text = String.format(Locale.US,"%.1f", movie.rating),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -564,7 +563,7 @@ private fun WriteReviewDialog(
                 )
                 Column {
                     Text(
-                        text = "Rating: ${String.format("%.1f", rating)}",
+                        text = "Rating: ${String.format(Locale.US,"%.1f", rating)}",
                         style = MaterialTheme.typography.labelLarge
                     )
                     Slider(
@@ -819,7 +818,7 @@ private fun MovieRatingSummary(rating: Double, ratingCount: Int) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = String.format("%.1f", rating),
+                    text = String.format(Locale.US,"%.1f", rating),
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -996,7 +995,7 @@ private fun ReviewCard(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = String.format("%.1f", rating),
+                            text = String.format(Locale.US,"%.1f", rating),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -1104,7 +1103,7 @@ private fun TrailerPlayerDialog(
                             runCatching {
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
-                                    Uri.parse("https://www.youtube.com/embed/${video.key}")
+                                    "https://www.youtube.com/embed/${video.key}".toUri()
                                 )
                                 context.startActivity(intent)
                             }

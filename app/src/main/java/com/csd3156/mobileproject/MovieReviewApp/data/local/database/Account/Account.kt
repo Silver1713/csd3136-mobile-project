@@ -10,7 +10,6 @@ import java.util.UUID
 @Entity(tableName = "accounts")
 data class Account(
     @PrimaryKey(autoGenerate = true)
-        @NonNull
     val id : Long,
     val uid : String,
     val email : String,

@@ -166,10 +166,6 @@ fun accountScreen(accountVM : AccountViewModel, modifier: Modifier, onNavigate :
     val _unusedNavigate = onNavigate
 }
 
-@Composable
-fun registerScreen(){
-
-}
 
 @Composable
 private fun AuthHeader() {
