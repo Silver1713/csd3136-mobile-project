@@ -1,11 +1,9 @@
 package com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account
 
-import androidx.annotation.NonNull
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import java.util.Date
-import java.util.UUID
 
 @Entity(tableName = "accounts")
 data class Account(

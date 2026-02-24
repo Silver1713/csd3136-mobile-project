@@ -56,15 +56,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.csd3156.mobileproject.MovieReviewApp.data.local.database.Account.Account
 import com.csd3156.mobileproject.MovieReviewApp.domain.model.AccountDomain
 import kotlinx.serialization.Serializable
 
 @Serializable
 data object AccountScreen
 
-@Serializable
-data object RegisterScreen
 
 private enum class AuthMode {
     LOGIN,
@@ -161,9 +158,6 @@ fun accountScreen(accountVM : AccountViewModel, modifier: Modifier, onNavigate :
         }
     }
 
-    // Reserved for upcoming logic wiring.
-    val _unusedVm = accountVM
-    val _unusedNavigate = onNavigate
 }
 
 

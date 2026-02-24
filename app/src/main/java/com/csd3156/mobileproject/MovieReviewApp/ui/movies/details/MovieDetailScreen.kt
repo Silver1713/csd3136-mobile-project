@@ -268,7 +268,7 @@ fun MovieDetailScreen(
             name = author?.name ?: reviewerName,
             onNameChange = { reviewerName = it },
             content = reviewContent,
-            onContentChange = { reviewContent = it },
+            onContentChange = {  },
             rating = reviewRating,
             onRatingChange = { reviewRating = it },
             photoPath = reviewPhotoPath,
